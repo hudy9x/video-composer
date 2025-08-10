@@ -11,28 +11,26 @@ const CONFIG = {
   // Array of text overlays - each with its own timing and styling
   textOverlays: [
     {
-      // Text content and timing
-      text: 'First Text',
-      startTime: 0,     // Start time in seconds
-      endTime: 3,       // End time in seconds
+      // First line: "ChatGPT" - positioned above center
+      text: 'ChatGPT',
+      startTime: 2,
+      endTime: 7,
       
-      // Font settings
-      fontSize: 172,
-      fontFamily: 'Cookie-Regular.ttf', // Font file name in /fonts folder
+      fontSize: 120,
+      fontFamily: 'Cookie-Regular.ttf',
       fontColor: 'white',
       
-      // Position settings
-      position: 'top-center',
+      // Position above center - 40% vertically (higher than center)
+      position: { x: '50%', y: '40%' },
       
-      // Text styling
       textOutline: {
         enabled: true,
         color: 'black',
-        width: 2
+        width: 3
       },
       
       textShadow: {
-        enabled: false,
+        enabled: true,
         color: 'black',
         offsetX: 2,
         offsetY: 2
@@ -44,42 +42,42 @@ const CONFIG = {
         padding: 10
       },
       
-      // Animation (optional)
       animation: {
-        enabled: false,
-        type: 'fade', // 'fade', 'slide-in', 'none'
-        duration: 1.0
+        enabled: true,
+        type: 'fade',
+        duration: 0.5
       }
     },
     {
-      // Second text overlay
-      text: 'Second Text',
-      startTime: 2,
-      endTime: 8,
+      // Second line: "prompt for" - positioned at center
+      text: 'prompt for',
+      startTime: 3,
+      endTime: 7,
       
-      fontSize: 196,
+      fontSize: 100,
       fontFamily: 'Cookie-Regular.ttf',
-      fontColor: 'yellow',
+      fontColor: 'white',
       
-      position: 'bottom-center',
+      // Position at exact center
+      position: { x: '50%', y: '50%' },
       
       textOutline: {
         enabled: true,
-        color: 'red',
+        color: 'black',
         width: 3
       },
       
       textShadow: {
         enabled: true,
         color: 'black',
-        offsetX: 3,
-        offsetY: 3
+        offsetX: 2,
+        offsetY: 2
       },
       
       textBox: {
         enabled: false,
-        color: 'blue@0.3',
-        padding: 15
+        color: 'black@0.5',
+        padding: 10
       },
       
       animation: {
@@ -89,43 +87,41 @@ const CONFIG = {
       }
     },
     {
-      // Third text overlay
-      text: 'Final Text',
-      startTime: 6,
-      endTime: 10,
+      // Third line: "images" - positioned below center
+      text: 'images',
+      startTime: 4,
+      endTime: 7,
       
-      fontSize: 196,
+      fontSize: 110,
       fontFamily: 'Cookie-Regular.ttf',
-      fontColor: 'lime',
+      fontColor: 'white',
       
-      position: {
-        x: '50%',
-        y: '50%'
-      },
+      // Position below center - 60% vertically (lower than center)
+      position: { x: '50%', y: '60%' },
       
       textOutline: {
         enabled: true,
-        color: 'darkgreen',
-        width: 4
+        color: 'black',
+        width: 3
       },
       
       textShadow: {
-        enabled: false,
+        enabled: true,
         color: 'black',
         offsetX: 2,
         offsetY: 2
       },
       
       textBox: {
-        enabled: true,
-        color: 'black@0.7',
-        padding: 20
+        enabled: false,
+        color: 'black@0.5',
+        padding: 10
       },
       
       animation: {
         enabled: true,
-        type: 'slide-in',
-        duration: 1.0
+        type: 'fade',
+        duration: 0.5
       }
     }
   ]
@@ -405,7 +401,16 @@ function displayConfig(inputFile, outputFile, validatedOverlays) {
     console.log(`    Timing:      ${overlay.startTime}s - ${overlay.endTime}s`);
     console.log(`    Font:        ${overlay.fontFamily} (${overlay.fontSize}px)`);
     console.log(`    Color:       ${overlay.fontColor}`);
-    console.log(`    Position:    ${typeof overlay.position === 'object' ? `${overlay.position.x}, ${overlay.position.y}` : overlay.position}`);
+    
+    // Display position with better formatting
+    let positionDisplay;
+    if (typeof overlay.position === 'object') {
+      positionDisplay = `x: ${overlay.position.x}, y: ${overlay.position.y}`;
+    } else {
+      positionDisplay = overlay.position;
+    }
+    console.log(`    Position:    ${positionDisplay}`);
+    
     console.log(`    Outline:     ${overlay.textOutline.enabled ? `${overlay.textOutline.color} (${overlay.textOutline.width}px)` : 'Disabled'}`);
     console.log(`    Shadow:      ${overlay.textShadow.enabled ? `${overlay.textShadow.color} (${overlay.textShadow.offsetX}, ${overlay.textShadow.offsetY})` : 'Disabled'}`);
     console.log(`    Background:  ${overlay.textBox.enabled ? overlay.textBox.color : 'Disabled'}`);
