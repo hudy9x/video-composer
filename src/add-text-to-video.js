@@ -13,8 +13,8 @@ const CONFIG = {
     {
       // Text content and timing
       text: 'First Text',
-      startTime: 2,     // Start time in seconds
-      endTime: 8,       // End time in seconds
+      startTime: 0,     // Start time in seconds
+      endTime: 3,       // End time in seconds
       
       // Font settings
       fontSize: 172,
@@ -46,9 +46,9 @@ const CONFIG = {
       
       // Animation (optional)
       animation: {
-        enabled: true,
+        enabled: false,
         type: 'fade', // 'fade', 'slide-in', 'none'
-        duration: 0.7
+        duration: 1.0
       }
     },
     {
@@ -58,10 +58,10 @@ const CONFIG = {
       endTime: 8,
       
       fontSize: 196,
-      fontFamily: 'SourceSerif4.ttf',
+      fontFamily: 'Cookie-Regular.ttf',
       fontColor: 'yellow',
       
-      position: 'middle-center',
+      position: 'bottom-center',
       
       textOutline: {
         enabled: true,
@@ -95,10 +95,13 @@ const CONFIG = {
       endTime: 10,
       
       fontSize: 196,
-      fontFamily: 'SourceSerif4.ttf',
+      fontFamily: 'Cookie-Regular.ttf',
       fontColor: 'lime',
       
-      position: 'bottom-center',
+      position: {
+        x: '50%',
+        y: '50%'
+      },
       
       textOutline: {
         enabled: true,
@@ -227,7 +230,35 @@ function validateConfig() {
 
 function getPositionCoordinates(position, videoWidth = 1920, videoHeight = 1080) {
   if (typeof position === 'object' && position.x !== undefined && position.y !== undefined) {
-    return `${position.x}:${position.y}`;
+    let x, y;
+    
+    // Handle X coordinate
+    if (typeof position.x === 'string' && position.x.includes('%')) {
+      // Percentage positioning: '50%' -> w*0.5-text_w/2
+      const percentage = parseFloat(position.x.replace('%', '')) / 100;
+      x = `w*${percentage}-text_w/2`;
+    } else if (typeof position.x === 'number' || (typeof position.x === 'string' && !isNaN(position.x))) {
+      // Fixed pixel positioning: 1400 -> '1400'
+      x = position.x.toString();
+    } else {
+      // Fallback to center
+      x = '(w-text_w)/2';
+    }
+    
+    // Handle Y coordinate
+    if (typeof position.y === 'string' && position.y.includes('%')) {
+      // Percentage positioning: '60%' -> h*0.6-text_h/2
+      const percentage = parseFloat(position.y.replace('%', '')) / 100;
+      y = `h*${percentage}-text_h/2`;
+    } else if (typeof position.y === 'number' || (typeof position.y === 'string' && !isNaN(position.y))) {
+      // Fixed pixel positioning: 1200 -> '1200'
+      y = position.y.toString();
+    } else {
+      // Fallback to center
+      y = '(h-text_h)/2';
+    }
+    
+    return `${x}:${y}`;
   }
 
   const positions = {
