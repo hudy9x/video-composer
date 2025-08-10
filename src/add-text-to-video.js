@@ -8,56 +8,130 @@ const fs = require('fs');
 // CONFIGURATION - EDIT THESE SETTINGS
 // ========================================
 const CONFIG = {
-  // Text content
-  text: 'ChatGPT',
-  
-  // Font settings
-  fontSize: 272,
-  fontFamily: 'Cookie-Regular.ttf', // Font file name in /fonts folder
-  fontColor: 'white',
-  
-  // Position settings
-  // Can use: 'center', 'top-left', 'top-center', 'top-right', 
-  //          'middle-left', 'middle-center', 'middle-right',
-  //          'bottom-left', 'bottom-center', 'bottom-right'
-  // Or custom coordinates: { x: 100, y: 200 }
-  position: 'middle-center',
-  
-  // Text styling
-  textOutline: {
-    enabled: false,
-    color: 'black',
-    width: 2
-  },
-  
-  // Text shadow
-  textShadow: {
-    enabled: false,
-    color: 'black',
-    offsetX: 2,
-    offsetY: 2
-  },
-  
-  // Background box (optional)
-  textBox: {
-    enabled: false,
-    color: 'black@0.5', // Color with transparency
-    padding: 10
-  },
-  
-  // Animation (optional)
-  animation: {
-    enabled: false,
-    type: 'fade', // 'fade', 'slide-in', 'none'
-    duration: 1.0, // seconds
-    startTime: 0   // start time in seconds
-  }
+  // Array of text overlays - each with its own timing and styling
+  textOverlays: [
+    {
+      // Text content and timing
+      text: 'First Text',
+      startTime: 2,     // Start time in seconds
+      endTime: 8,       // End time in seconds
+      
+      // Font settings
+      fontSize: 172,
+      fontFamily: 'Cookie-Regular.ttf', // Font file name in /fonts folder
+      fontColor: 'white',
+      
+      // Position settings
+      position: 'top-center',
+      
+      // Text styling
+      textOutline: {
+        enabled: true,
+        color: 'black',
+        width: 2
+      },
+      
+      textShadow: {
+        enabled: false,
+        color: 'black',
+        offsetX: 2,
+        offsetY: 2
+      },
+      
+      textBox: {
+        enabled: false,
+        color: 'black@0.5',
+        padding: 10
+      },
+      
+      // Animation (optional)
+      animation: {
+        enabled: true,
+        type: 'fade', // 'fade', 'slide-in', 'none'
+        duration: 0.7
+      }
+    },
+    {
+      // Second text overlay
+      text: 'Second Text',
+      startTime: 2,
+      endTime: 8,
+      
+      fontSize: 196,
+      fontFamily: 'SourceSerif4.ttf',
+      fontColor: 'yellow',
+      
+      position: 'middle-center',
+      
+      textOutline: {
+        enabled: true,
+        color: 'red',
+        width: 3
+      },
+      
+      textShadow: {
+        enabled: true,
+        color: 'black',
+        offsetX: 3,
+        offsetY: 3
+      },
+      
+      textBox: {
+        enabled: false,
+        color: 'blue@0.3',
+        padding: 15
+      },
+      
+      animation: {
+        enabled: true,
+        type: 'fade',
+        duration: 0.5
+      }
+    },
+    {
+      // Third text overlay
+      text: 'Final Text',
+      startTime: 6,
+      endTime: 10,
+      
+      fontSize: 196,
+      fontFamily: 'SourceSerif4.ttf',
+      fontColor: 'lime',
+      
+      position: 'bottom-center',
+      
+      textOutline: {
+        enabled: true,
+        color: 'darkgreen',
+        width: 4
+      },
+      
+      textShadow: {
+        enabled: false,
+        color: 'black',
+        offsetX: 2,
+        offsetY: 2
+      },
+      
+      textBox: {
+        enabled: true,
+        color: 'black@0.7',
+        padding: 20
+      },
+      
+      animation: {
+        enabled: true,
+        type: 'slide-in',
+        duration: 1.0
+      }
+    }
+  ]
 };
 // ========================================
 
 function showHelp() {
   console.log(`
-Video Text Overlay Tool
+Video Multi-Text Overlay Tool
 
 Usage: node add-text-to-video.js [input_file] [output_file]
 
@@ -70,16 +144,14 @@ Examples:
   node add-text-to-video.js ./video/input.mp4 ./video/output.mp4
 
 Configuration:
-  Edit the CONFIG object at the top of this script to customize:
-  - Text content and styling
-  - Font family, size, and color
-  - Position and alignment
-  - Text effects (outline, shadow, background)
-  - Animation options
+  Edit the CONFIG.textOverlays array at the top of this script to customize:
+  - Multiple text overlays with individual timing
+  - Each text has its own styling, position, and effects
+  - startTime and endTime control when each text appears/disappears
 
 Font Setup:
   Place your font files (.ttf, .otf) in a './fonts' folder
-  Update CONFIG.fontFamily with your font filename
+  Update fontFamily for each text overlay with your font filename
 
 Note: This script requires FFmpeg to be installed on your system.
 `);
@@ -107,7 +179,7 @@ function parseArguments() {
     const dir = path.dirname(inputFile);
     const ext = path.extname(inputFile);
     const name = path.basename(inputFile, ext);
-    outputFile = path.join(dir, `${name}_with_text${ext}`);
+    outputFile = path.join(dir, `${name}_with_multi_text${ext}`);
   }
 
   return { inputFile, outputFile };
@@ -122,19 +194,35 @@ function validateConfig() {
     process.exit(1);
   }
 
-  // Check if specified font file exists
-  const fontPath = path.join(fontsDir, CONFIG.fontFamily);
-  if (!fs.existsSync(fontPath)) {
-    console.error(`Error: Font file "${CONFIG.fontFamily}" not found in ./fonts folder`);
-    console.error(`Available fonts in ./fonts:`);
-    const fonts = fs.readdirSync(fontsDir).filter(f => 
-      f.endsWith('.ttf') || f.endsWith('.otf') || f.endsWith('.TTF') || f.endsWith('.OTF')
-    );
-    fonts.forEach(font => console.error(`  - ${font}`));
-    process.exit(1);
-  }
+  // Validate each text overlay
+  const validatedOverlays = [];
+  
+  CONFIG.textOverlays.forEach((overlay, index) => {
+    // Check if specified font file exists
+    const fontPath = path.join(fontsDir, overlay.fontFamily);
+    if (!fs.existsSync(fontPath)) {
+      console.error(`Error: Font file "${overlay.fontFamily}" for text overlay ${index + 1} not found in ./fonts folder`);
+      console.error(`Available fonts in ./fonts:`);
+      const fonts = fs.readdirSync(fontsDir).filter(f => 
+        f.endsWith('.ttf') || f.endsWith('.otf') || f.endsWith('.TTF') || f.endsWith('.OTF')
+      );
+      fonts.forEach(font => console.error(`  - ${font}`));
+      process.exit(1);
+    }
+    
+    // Validate timing
+    if (overlay.startTime >= overlay.endTime) {
+      console.error(`Error: Text overlay ${index + 1} has invalid timing. startTime (${overlay.startTime}) must be less than endTime (${overlay.endTime})`);
+      process.exit(1);
+    }
+    
+    validatedOverlays.push({
+      ...overlay,
+      fontPath: fontPath
+    });
+  });
 
-  return fontPath;
+  return validatedOverlays;
 }
 
 function getPositionCoordinates(position, videoWidth = 1920, videoHeight = 1080) {
@@ -158,66 +246,75 @@ function getPositionCoordinates(position, videoWidth = 1920, videoHeight = 1080)
   return positions[position] || positions['center'];
 }
 
-function buildTextFilter(fontPath) {
-  const filters = [];
-  
+function buildTextFilter(overlay) {
   // Escape text for FFmpeg
-  const escapedText = CONFIG.text.replace(/'/g, "\\'").replace(/:/g, "\\:");
+  const escapedText = overlay.text.replace(/'/g, "\\'").replace(/:/g, "\\:");
   
   // Build drawtext filter
   let drawtext = `drawtext=text='${escapedText}'`;
-  drawtext += `:fontfile='${fontPath.replace(/\\/g, '/')}'`;
-  drawtext += `:fontsize=${CONFIG.fontSize}`;
-  drawtext += `:fontcolor=${CONFIG.fontColor}`;
+  drawtext += `:fontfile='${overlay.fontPath.replace(/\\/g, '/')}'`;
+  drawtext += `:fontsize=${overlay.fontSize}`;
+  drawtext += `:fontcolor=${overlay.fontColor}`;
   
   // Position
-  const coordinates = getPositionCoordinates(CONFIG.position);
+  const coordinates = getPositionCoordinates(overlay.position);
   drawtext += `:x=${coordinates.split(':')[0]}:y=${coordinates.split(':')[1]}`;
   
   // Text outline
-  if (CONFIG.textOutline.enabled) {
-    drawtext += `:borderw=${CONFIG.textOutline.width}:bordercolor=${CONFIG.textOutline.color}`;
+  if (overlay.textOutline.enabled) {
+    drawtext += `:borderw=${overlay.textOutline.width}:bordercolor=${overlay.textOutline.color}`;
   }
   
   // Text shadow
-  if (CONFIG.textShadow.enabled) {
-    drawtext += `:shadowx=${CONFIG.textShadow.offsetX}:shadowy=${CONFIG.textShadow.offsetY}:shadowcolor=${CONFIG.textShadow.color}`;
+  if (overlay.textShadow.enabled) {
+    drawtext += `:shadowx=${overlay.textShadow.offsetX}:shadowy=${overlay.textShadow.offsetY}:shadowcolor=${overlay.textShadow.color}`;
   }
   
   // Background box
-  if (CONFIG.textBox.enabled) {
-    drawtext += `:box=1:boxcolor=${CONFIG.textBox.color}:boxborderw=${CONFIG.textBox.padding}`;
+  if (overlay.textBox.enabled) {
+    drawtext += `:box=1:boxcolor=${overlay.textBox.color}:boxborderw=${overlay.textBox.padding}`;
   }
   
-  // Animation
-  if (CONFIG.animation.enabled) {
-    const startTime = CONFIG.animation.startTime;
-    const duration = CONFIG.animation.duration;
-    const endTime = startTime + duration;
+  // Timing - always apply start and end time
+  if (overlay.animation.enabled && overlay.animation.type === 'fade') {
+    // Fade animation with timing
+    const fadeInDuration = overlay.animation.duration;
+    const fadeOutDuration = overlay.animation.duration;
+    const visibleDuration = overlay.endTime - overlay.startTime - fadeInDuration - fadeOutDuration;
     
-    switch (CONFIG.animation.type) {
-      case 'fade':
-        drawtext += `:enable='between(t,${startTime},${endTime})'`;
-        drawtext += `:alpha='if(lt(t,${startTime}),0,if(lt(t,${startTime + duration/2}),(t-${startTime})/${duration/2},1))'`;
-        break;
-      case 'slide-in':
-        drawtext += `:enable='gte(t,${startTime})'`;
-        drawtext += `:x='if(lt(t,${endTime}),w-(t-${startTime})/${duration}*w,${coordinates.split(':')[0]})'`;
-        break;
+    if (visibleDuration > 0) {
+      const fadeInEnd = overlay.startTime + fadeInDuration;
+      const fadeOutStart = overlay.endTime - fadeOutDuration;
+      
+      drawtext += `:enable='between(t,${overlay.startTime},${overlay.endTime})'`;
+      drawtext += `:alpha='if(lt(t,${fadeInEnd}),(t-${overlay.startTime})/${fadeInDuration},if(lt(t,${fadeOutStart}),1,(${overlay.endTime}-t)/${fadeOutDuration}))'`;
+    } else {
+      // If fade duration is too long, just show/hide at start/end times
+      drawtext += `:enable='between(t,${overlay.startTime},${overlay.endTime})'`;
     }
+  } else if (overlay.animation.enabled && overlay.animation.type === 'slide-in') {
+    // Slide-in animation
+    const slideInEnd = overlay.startTime + overlay.animation.duration;
+    drawtext += `:enable='between(t,${overlay.startTime},${overlay.endTime})'`;
+    drawtext += `:x='if(lt(t,${slideInEnd}),w-(t-${overlay.startTime})/${overlay.animation.duration}*w,${coordinates.split(':')[0]})'`;
+  } else {
+    // No animation, just show between start and end time
+    drawtext += `:enable='between(t,${overlay.startTime},${overlay.endTime})'`;
   }
   
   return drawtext;
 }
 
-function buildFFmpegCommand(inputFile, outputFile, fontPath) {
+function buildFFmpegCommand(inputFile, outputFile, validatedOverlays) {
   const args = ['-i', inputFile];
   
-  // Build text filter
-  const textFilter = buildTextFilter(fontPath);
+  // Build text filters for all overlays
+  const textFilters = validatedOverlays.map(overlay => buildTextFilter(overlay));
   
-  // Apply video filter
-  args.push('-vf', textFilter);
+  // Combine all filters
+  if (textFilters.length > 0) {
+    args.push('-vf', textFilters.join(','));
+  }
   
   // Output settings
   args.push(
@@ -266,17 +363,25 @@ function runFFmpeg(args) {
   });
 }
 
-function displayConfig(inputFile, outputFile, fontPath) {
-  console.log('Text Overlay Configuration:');
-  console.log(`  Text:        "${CONFIG.text}"`);
-  console.log(`  Font:        ${CONFIG.fontFamily} (${CONFIG.fontSize}px)`);
-  console.log(`  Color:       ${CONFIG.fontColor}`);
-  console.log(`  Position:    ${typeof CONFIG.position === 'object' ? `${CONFIG.position.x}, ${CONFIG.position.y}` : CONFIG.position}`);
-  console.log(`  Outline:     ${CONFIG.textOutline.enabled ? `${CONFIG.textOutline.color} (${CONFIG.textOutline.width}px)` : 'Disabled'}`);
-  console.log(`  Shadow:      ${CONFIG.textShadow.enabled ? `${CONFIG.textShadow.color} (${CONFIG.textShadow.offsetX}, ${CONFIG.textShadow.offsetY})` : 'Disabled'}`);
-  console.log(`  Background:  ${CONFIG.textBox.enabled ? CONFIG.textBox.color : 'Disabled'}`);
-  console.log(`  Animation:   ${CONFIG.animation.enabled ? CONFIG.animation.type : 'Disabled'}`);
+function displayConfig(inputFile, outputFile, validatedOverlays) {
+  console.log('Multi-Text Overlay Configuration:');
+  console.log(`  Total overlays: ${validatedOverlays.length}`);
   console.log('');
+  
+  validatedOverlays.forEach((overlay, index) => {
+    console.log(`  Text ${index + 1}:`);
+    console.log(`    Text:        "${overlay.text}"`);
+    console.log(`    Timing:      ${overlay.startTime}s - ${overlay.endTime}s`);
+    console.log(`    Font:        ${overlay.fontFamily} (${overlay.fontSize}px)`);
+    console.log(`    Color:       ${overlay.fontColor}`);
+    console.log(`    Position:    ${typeof overlay.position === 'object' ? `${overlay.position.x}, ${overlay.position.y}` : overlay.position}`);
+    console.log(`    Outline:     ${overlay.textOutline.enabled ? `${overlay.textOutline.color} (${overlay.textOutline.width}px)` : 'Disabled'}`);
+    console.log(`    Shadow:      ${overlay.textShadow.enabled ? `${overlay.textShadow.color} (${overlay.textShadow.offsetX}, ${overlay.textShadow.offsetY})` : 'Disabled'}`);
+    console.log(`    Background:  ${overlay.textBox.enabled ? overlay.textBox.color : 'Disabled'}`);
+    console.log(`    Animation:   ${overlay.animation.enabled ? overlay.animation.type : 'Disabled'}`);
+    console.log('');
+  });
+  
   console.log(`Input:  ${inputFile}`);
   console.log(`Output: ${outputFile}`);
   console.log('');
@@ -285,16 +390,21 @@ function displayConfig(inputFile, outputFile, fontPath) {
 async function main() {
   try {
     const { inputFile, outputFile } = parseArguments();
-    const fontPath = validateConfig();
+    const validatedOverlays = validateConfig();
     
-    displayConfig(inputFile, outputFile, fontPath);
+    if (validatedOverlays.length === 0) {
+      console.error('Error: No text overlays configured in CONFIG.textOverlays');
+      process.exit(1);
+    }
     
-    const ffmpegArgs = buildFFmpegCommand(inputFile, outputFile, fontPath);
+    displayConfig(inputFile, outputFile, validatedOverlays);
+    
+    const ffmpegArgs = buildFFmpegCommand(inputFile, outputFile, validatedOverlays);
     
     await runFFmpeg(ffmpegArgs);
     
     console.log('');
-    console.log(`✅ Text overlay completed successfully!`);
+    console.log(`✅ Multi-text overlay completed successfully!`);
     console.log(`Output file: ${outputFile}`);
     
   } catch (error) {
