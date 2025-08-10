@@ -11,8 +11,11 @@ const CONFIG = {
   whisperModel: 'base',
   // Language (auto-detect if null)
   language: null,
-  // Max segment length in seconds
-  maxSegmentLength: 6
+  // Max segment length in seconds for splitting
+  maxSegmentLength: 1.5, // Reduced from 6 to 1.5 seconds
+  // Word-level splitting options
+  maxWordsPerSegment: 4, // Maximum words per segment
+  enableWordTimestamps: true
 };
 
 // ===== UTILITY FUNCTIONS =====
@@ -59,11 +62,200 @@ function formatTimestamp(seconds) {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
 }
 
+function timeToSeconds(timeString) {
+  // Convert MM:SS.mmm to seconds
+  const parts = timeString.split(':');
+  if (parts.length === 2) {
+    const [minutes, seconds] = parts;
+    return parseInt(minutes) * 60 + parseFloat(seconds);
+  } else if (parts.length === 3) {
+    const [hours, minutes, seconds] = parts;
+    return parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseFloat(seconds);
+  }
+  return parseFloat(timeString);
+}
+
+function secondsToTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const secs = (seconds % 60).toFixed(2);
+  return `${minutes.toString().padStart(2, '0')}:${secs.padStart(5, '0')}`;
+}
+
+// Split segments by time duration
+function splitSegmentsByTime(segments, maxDuration = CONFIG.maxSegmentLength) {
+  const result = [];
+  
+  for (const segment of segments) {
+    const [startTime, endTime] = segment.time.split('-');
+    const startSeconds = timeToSeconds(startTime);
+    const endSeconds = timeToSeconds(endTime);
+    const duration = endSeconds - startSeconds;
+    
+    if (duration <= maxDuration) {
+      result.push(segment);
+      continue;
+    }
+    
+    // Split long segment
+    const words = segment.text.split(' ');
+    const wordsPerSecond = words.length / duration;
+    const targetSegments = Math.ceil(duration / maxDuration);
+    const wordsPerSegment = Math.ceil(words.length / targetSegments);
+    
+    for (let i = 0; i < targetSegments; i++) {
+      const segmentWords = words.slice(i * wordsPerSegment, (i + 1) * wordsPerSegment);
+      if (segmentWords.length === 0) continue;
+      
+      const segmentStartTime = startSeconds + (i * duration / targetSegments);
+      const segmentEndTime = Math.min(startSeconds + ((i + 1) * duration / targetSegments), endSeconds);
+      
+      result.push({
+        text: segmentWords.join(' '),
+        time: `${secondsToTime(segmentStartTime)}-${secondsToTime(segmentEndTime)}`
+      });
+    }
+  }
+  
+  return result;
+}
+
+// Split segments by word count
+function splitSegmentsByWords(segments, maxWords = CONFIG.maxWordsPerSegment) {
+  const result = [];
+  
+  for (const segment of segments) {
+    const words = segment.text.split(' ');
+    const [startTime, endTime] = segment.time.split('-');
+    const startSeconds = timeToSeconds(startTime);
+    const endSeconds = timeToSeconds(endTime);
+    const duration = endSeconds - startSeconds;
+    
+    if (words.length <= maxWords) {
+      result.push(segment);
+      continue;
+    }
+    
+    // Split by word count
+    const segmentCount = Math.ceil(words.length / maxWords);
+    const timePerSegment = duration / segmentCount;
+    
+    for (let i = 0; i < segmentCount; i++) {
+      const segmentWords = words.slice(i * maxWords, (i + 1) * maxWords);
+      if (segmentWords.length === 0) continue;
+      
+      const segmentStartTime = startSeconds + (i * timePerSegment);
+      const segmentEndTime = Math.min(startSeconds + ((i + 1) * timePerSegment), endSeconds);
+      
+      result.push({
+        text: segmentWords.join(' '),
+        time: `${secondsToTime(segmentStartTime)}-${secondsToTime(segmentEndTime)}`
+      });
+    }
+  }
+  
+  return result;
+}
+
+// Advanced splitting using Whisper's word-level timestamps
+async function transcribeWithWordTimestamps(audioPath) {
+  console.log('🎤 Transcribing with word-level timestamps...');
+  
+  const args = [
+    audioPath,
+    '--model', CONFIG.whisperModel,
+    '--output_dir', CONFIG.tempDir,
+    '--output_format', 'json', // Use JSON for word timestamps
+    '--word_timestamps', 'True',
+    '--verbose', 'False'
+  ];
+  
+  if (CONFIG.language) {
+    args.push('--language', CONFIG.language);
+  }
+  
+  try {
+    await runCommand('whisper', args);
+    
+    // Find the generated JSON file
+    const baseFilename = path.parse(audioPath).name;
+    const jsonPath = path.join(CONFIG.tempDir, `${baseFilename}.json`);
+    
+    const jsonContent = await fs.readFile(jsonPath, 'utf8');
+    const whisperData = JSON.parse(jsonContent);
+    
+    return whisperData;
+  } catch (error) {
+    console.warn('Word-level timestamps failed, falling back to regular transcription');
+    return null;
+  }
+}
+
+function createSegmentsFromWordTimestamps(whisperData, maxDuration = CONFIG.maxSegmentLength) {
+  if (!whisperData || !whisperData.segments) {
+    return null;
+  }
+  
+  const result = [];
+  
+  for (const segment of whisperData.segments) {
+    if (!segment.words || segment.words.length === 0) {
+      // Fallback to segment-level timing
+      result.push({
+        text: segment.text.trim(),
+        time: `${secondsToTime(segment.start)}-${secondsToTime(segment.end)}`
+      });
+      continue;
+    }
+    
+    // Create segments using word-level timestamps
+    let currentSegment = {
+      words: [],
+      start: segment.words[0].start,
+      end: segment.words[0].end
+    };
+    
+    for (const word of segment.words) {
+      // Check if adding this word would exceed maxDuration or maxWords
+      const potentialEnd = word.end;
+      const potentialDuration = potentialEnd - currentSegment.start;
+      
+      if ((potentialDuration > maxDuration || currentSegment.words.length >= CONFIG.maxWordsPerSegment) 
+          && currentSegment.words.length > 0) {
+        // Finalize current segment
+        result.push({
+          text: currentSegment.words.map(w => w.word).join('').trim(),
+          time: `${secondsToTime(currentSegment.start)}-${secondsToTime(currentSegment.end)}`
+        });
+        
+        // Start new segment
+        currentSegment = {
+          words: [word],
+          start: word.start,
+          end: word.end
+        };
+      } else {
+        // Add word to current segment
+        currentSegment.words.push(word);
+        currentSegment.end = word.end;
+      }
+    }
+    
+    // Add final segment if it has words
+    if (currentSegment.words.length > 0) {
+      result.push({
+        text: currentSegment.words.map(w => w.word).join('').trim(),
+        time: `${secondsToTime(currentSegment.start)}-${secondsToTime(currentSegment.end)}`
+      });
+    }
+  }
+  
+  return result;
+}
+
 function parseWhisperOutput(whisperText) {
   // Parse Whisper's VTT-like output format
   const segments = [];
   const lines = whisperText.split(/\r?\n/).filter(Boolean);
-  // console.log('parseWhisperOutput. lines => ', lines);
   let currentSegment = null;
   
   for (const line of lines) {
@@ -74,11 +266,8 @@ function parseWhisperOutput(whisperText) {
       continue;
     }
     
-    // Check if line contains timestamp (format: 00:00:02.000 --> 00:00:04.000)
+    // Check if line contains timestamp
     const timestampMatch = trimmedLine.match(/(?<start>(\d{2}:)?\d{2}:\d{2}\.\d{3})(\s*-->\s*)(?<end>(\d{2}:)?\d{2}:\d{2}\.\d{3})/);
-
-    console.log('trimmedLine', trimmedLine)
-    console.log('timestampMatch', timestampMatch);
     
     if (timestampMatch) {
       const {groups} = timestampMatch;
@@ -116,7 +305,6 @@ async function ensureDirectories() {
   }
 }
 
-// ===== MAIN CONVERSION FUNCTIONS =====
 async function convertToWav(inputPath) {
   console.log('🔄 Converting audio to WAV format...');
   
@@ -125,9 +313,9 @@ async function convertToWav(inputPath) {
   const args = [
     '-i', inputPath,
     '-acodec', 'pcm_s16le',
-    '-ar', '16000',  // 16kHz sample rate (Whisper standard)
-    '-ac', '1',      // Mono
-    '-y',            // Overwrite output
+    '-ar', '16000',
+    '-ac', '1',
+    '-y',
     wavPath
   ];
   
@@ -137,9 +325,7 @@ async function convertToWav(inputPath) {
 }
 
 async function transcribeWithWhisper(audioPath) {
-  console.log('🎤 Transcribing audio with Whisper...: => ', audioPath);
-  
-  const outputPath = path.join(CONFIG.tempDir, `transcript_${uuidv4()}`);
+  console.log('🎤 Transcribing audio with Whisper...');
   
   const args = [
     audioPath,
@@ -153,13 +339,9 @@ async function transcribeWithWhisper(audioPath) {
     args.push('--language', CONFIG.language);
   }
   
-  // Add max segment length
-  args.push('--word_timestamps', 'True');
-  
   try {
-    const result = await runCommand('whisper', args);
+    await runCommand('whisper', args);
     
-    // Find the generated VTT file
     const baseFilename = path.parse(audioPath).name;
     const vttPath = path.join(CONFIG.tempDir, `${baseFilename}.vtt`);
     
@@ -168,55 +350,70 @@ async function transcribeWithWhisper(audioPath) {
     
     return vttContent;
   } catch (error) {
-    throw new Error(`Whisper transcription failed: ${error.message}\n\nMake sure you have Whisper installed:\npip install openai-whisper`);
+    throw new Error(`Whisper transcription failed: ${error.message}`);
   }
 }
 
-async function speechToText(mp3Path, outputJsonPath = null) {
+async function speechToText(mp3Path, outputJsonPath = null, splitMethod = 'time') {
   console.log(`\n🎵 Starting speech-to-text conversion: ${mp3Path}`);
+  console.log(`📏 Split method: ${splitMethod}, Max duration: ${CONFIG.maxSegmentLength}s, Max words: ${CONFIG.maxWordsPerSegment}`);
   
   await ensureDirectories();
   
   let wavPath = null;
   
   try {
-    // Check if input file exists
     await fs.access(mp3Path);
-    
-    // Convert to WAV format for Whisper
     wavPath = await convertToWav(mp3Path);
     
-    // Transcribe with Whisper
-    const whisperOutput = await transcribeWithWhisper(wavPath);
-
-    console.log('whisperOutput', whisperOutput);
+    let segments = [];
     
-    // Parse Whisper output to desired format
-    const segments = parseWhisperOutput(whisperOutput);
+    // Try word-level timestamps first if enabled
+    if (CONFIG.enableWordTimestamps && splitMethod === 'word-timestamps') {
+      console.log('🔍 Attempting word-level timestamp extraction...');
+      const whisperData = await transcribeWithWordTimestamps(wavPath);
+      
+      if (whisperData) {
+        segments = createSegmentsFromWordTimestamps(whisperData);
+        console.log('✓ Using word-level timestamps');
+      }
+    }
     
-    console.log(`\n📝 Transcription Results:`);
-    console.log('=' .repeat(50));
-    console.log('segments', segments);
+    // Fallback to VTT parsing if word timestamps failed
+    if (segments.length === 0) {
+      console.log('📝 Using VTT parsing method...');
+      const whisperOutput = await transcribeWithWhisper(wavPath);
+      segments = parseWhisperOutput(whisperOutput);
+      
+      // Apply splitting method
+      switch (splitMethod) {
+        case 'time':
+          segments = splitSegmentsByTime(segments);
+          break;
+        case 'words':
+          segments = splitSegmentsByWords(segments);
+          break;
+        case 'both':
+          segments = splitSegmentsByTime(segments);
+          segments = splitSegmentsByWords(segments);
+          break;
+      }
+    }
+    
+    console.log(`\n📝 Transcription Results (${segments.length} segments):`);
+    console.log('='.repeat(50));
     segments.forEach((segment, index) => {
-      console.log(`${index + 1}. [${segment.time}] "${segment.text}"`);
+      const [startTime, endTime] = segment.time.split('-');
+      const duration = (timeToSeconds(endTime) - timeToSeconds(startTime)).toFixed(2);
+      console.log(`${index + 1}. [${segment.time}] (${duration}s) "${segment.text}"`);
     });
     
-    // Save to JSON file if specified
+    // Save to JSON file
     if (outputJsonPath || segments.length > 0) {
       const finalOutputPath = outputJsonPath || path.join(CONFIG.outputDir, 'transcription.json');
       await fs.writeFile(finalOutputPath, JSON.stringify(segments, null, 2));
       console.log(`\n💾 Transcription saved to: ${finalOutputPath}`);
     }
-    
-    // Print JavaScript array format
-    console.log(`\n🔧 JavaScript Array Format:`);
-    console.log('=' .repeat(50));
-    console.log('const transcription = [');
-    segments.forEach((segment, index) => {
-      const comma = index < segments.length - 1 ? ',' : '';
-      console.log(`  { text: '${segment.text}', time: '${segment.time}' }${comma}`);
-    });
-    console.log('];');
     
     return segments;
     
@@ -224,7 +421,6 @@ async function speechToText(mp3Path, outputJsonPath = null) {
     console.error(`\n❌ Error: ${error.message}`);
     throw error;
   } finally {
-    // Cleanup temporary WAV file
     if (wavPath) {
       try {
         await fs.unlink(wavPath);
@@ -236,19 +432,6 @@ async function speechToText(mp3Path, outputJsonPath = null) {
   }
 }
 
-// ===== EXAMPLE USAGE =====
-async function main() {
-  const mp3Path = './audio/sample.mp3'; // Change this to your MP3 file
-  
-  try {
-    const transcription = await speechToText(mp3Path);
-    console.log(`\nTranscription completed! Found ${transcription.length} segments.`);
-  } catch (error) {
-    console.error('Transcription failed:', error.message);
-    process.exit(1);
-  }
-}
-
 // ===== EXPORTS =====
 module.exports = {
   speechToText,
@@ -257,12 +440,20 @@ module.exports = {
 
 // Run if this file is executed directly
 if (require.main === module) {
-  // Check if MP3 path provided as argument
   const mp3Path = process.argv[2];
+  const splitMethod = process.argv[3] || 'time'; // 'time', 'words', 'both', or 'word-timestamps'
+  
   if (mp3Path) {
-    speechToText(mp3Path).catch(console.error);
+    console.log(`Using split method: ${splitMethod}`);
+    speechToText(mp3Path, null, splitMethod).catch(console.error);
   } else {
-    console.log('Usage: node speech-to-text.js <path-to-mp3-file>');
-    console.log('Example: node speech-to-text.js ./audio/sample.mp3');
+    console.log('Usage: node speech-to-text.js <path-to-mp3-file> [split-method]');
+    console.log('Split methods:');
+    console.log('  time - Split by duration (default)');
+    console.log('  words - Split by word count');  
+    console.log('  both - Apply both time and word splitting');
+    console.log('  word-timestamps - Use Whisper word-level timestamps (best quality)');
+    console.log('');
+    console.log('Example: node speech-to-text.js ./audio/sample.mp3 word-timestamps');
   }
 }
