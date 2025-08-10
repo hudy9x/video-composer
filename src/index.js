@@ -34,7 +34,7 @@ const CONFIG = {
   finalOutputName: `final_video_${generateTimestampInGmtPlus7()}.mp4`,
 
   // Subtitle position: 'top', 'center', 'bottom'
-  subtitlePosition: 'bottom',
+  subtitlePosition: 'center',
 
   // Enable/disable features
   enableSubtitles: true,
@@ -109,7 +109,8 @@ async function loadExistingTranscription(path) {
 function setupSubtitleStyle() {
   // Customize subtitle appearance
   setSubtitleStyle({
-    fontSize: 28,
+    fontSize: 50,
+    fontFamily: 'Monaco',
     fontColor: 'white',
     outlineColor: 'black',
     outlineWidth: 2,

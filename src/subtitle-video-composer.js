@@ -112,12 +112,10 @@ function createSubtitleFilter(subtitles) {
     const [startTime, endTime] = subtitle.time.split('-');
     const startSeconds = parseTimeToSeconds(startTime);
     const endSeconds = parseTimeToSeconds(endTime);
-
-    console.log('subtitle time', startSeconds, endSeconds)
     
     // Escape special characters in text
     const escapedText = subtitle.text
-      .replace(/'/g, "'\\''")  // Escape single quotes
+      .replace(/'/g, "&apos;")  // Escape single quotes
       .replace(/:/g, '\\:')    // Escape colons
       .replace(/\[/g, '\\[')   // Escape brackets
       .replace(/\]/g, '\\]');
@@ -186,6 +184,7 @@ async function addSubtitlesToVideo(videoPath, audioPath, subtitles, outputFilena
     
     // Add video filter only if we have subtitles
     if (subtitles && subtitles.length > 0) {
+      console.log('subtitles', subtitles)
       const subtitleFilter = createSubtitleFilter(subtitles);
       args.push('-vf', subtitleFilter);
       console.log(`🔤 Adding ${subtitles.length} subtitle segments`);
