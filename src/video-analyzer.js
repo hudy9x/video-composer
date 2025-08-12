@@ -209,16 +209,18 @@ async function cleanupFile(filePath) {
 
 async function processVideoFrame(videoPath, timeInSeconds = 5) {
   const videoName = getVideoNameWithoutExtension(videoPath);
-  const tempImagePath = path.join(TEMP_FOLDER, `${videoName}_temp_frame.jpg`);
+  const videoDir = path.dirname(videoPath);
+  const frameImagePath = path.join(videoDir, `${videoName}_frame_${timeInSeconds}.jpg`);
 
   try {
     // Extract frame from video
     console.log("Extracting frame at", timeInSeconds, "seconds from video:", videoPath);
-    await extractFrameFromVideo(videoPath, tempImagePath, timeInSeconds);
+    await extractFrameFromVideo(videoPath, frameImagePath, timeInSeconds);
+    console.log("Saved extracted frame to:", frameImagePath);
 
     // Analyze the extracted frame
-    console.log("Analyzing frame with Gemini:", tempImagePath);
-    const analysisMarkdown = await analyzeImageWithGemini(tempImagePath);
+    console.log("Analyzing frame with Gemini:", frameImagePath);
+    const analysisMarkdown = await analyzeImageWithGemini(frameImagePath);
 
     // Build Markdown document
     const markdownDoc = `# Video Frame Analysis: ${videoName}\n\n- Video path: ${videoPath}\n- Frame time (s): ${timeInSeconds}\n- Extraction timestamp: ${new Date().toISOString()}\n\n---\n\n## AI Analysis\n\n${analysisMarkdown}\n`;
@@ -228,19 +230,18 @@ async function processVideoFrame(videoPath, timeInSeconds = 5) {
     const errorMarkdown = `# Video Frame Analysis Error\n\n- Video path: ${videoPath}\n- Frame time (s): ${timeInSeconds}\n- Extraction timestamp: ${new Date().toISOString()}\n- Status: error\n- Error: ${error.message}\n`;
     return errorMarkdown;
   } finally {
-    // Clean up temporary file
-    await cleanupFile(tempImagePath);
+    // Keep the extracted frame next to the video as requested
   }
 }
 
-async function processSingleVideo(videoPath, timeInSeconds = 5) {
+async function processSingleVideo(videoPath, timeInSeconds = 5, force = false) {
   console.log("\n" + "=".repeat(60));
   console.log("Processing video:", videoPath);
   console.log("Frame time:", timeInSeconds, "seconds");
 
   // Check if already analyzed
-  if (await isVideoAlreadyAnalyzed(videoPath)) {
-    console.log("⚠️  Video already analyzed, skipping...");
+  if (!force && (await isVideoAlreadyAnalyzed(videoPath))) {
+    console.log("⚠️  Video already analyzed, skipping... (use --force to overwrite)");
     const outputPath = getOutputFilePath(videoPath);
     console.log("Existing analysis found at:", outputPath);
     return { skipped: true, outputPath };
@@ -255,14 +256,14 @@ async function processSingleVideo(videoPath, timeInSeconds = 5) {
     
     console.log("\n✅ Markdown analysis saved to:", outputPath);
     
-    return { success: true, outputPath };
+    return { success: true, outputPath, forced: force };
   } catch (error) {
     console.error("❌ Error processing video:", error);
     return { error: true, message: error.message };
   }
 }
 
-async function processAllVideos(timeInSeconds = 5) {
+async function processAllVideos(timeInSeconds = 5, force = false) {
   console.log("🔍 Scanning for videos recursively in:", VIDEO_FOLDER);
   
   const videoFiles = await getAllVideoFiles();
@@ -317,7 +318,7 @@ async function processAllVideos(timeInSeconds = 5) {
     
     console.log(`\n🎬 Processing ${i + 1}/${videoFiles.length}: ${category}/${videoName}`);
     
-    const result = await processSingleVideo(videoPath, timeInSeconds);
+    const result = await processSingleVideo(videoPath, timeInSeconds, force);
     
     // Update overall stats
     if (result.skipped) {
@@ -372,29 +373,34 @@ async function main() {
   
   if (args.length === 0) {
     console.error("Usage:");
-    console.error("  Single video: node video-analyzer.js <local_video_path> [time_in_seconds]");
-    console.error("  All videos:   node video-analyzer.js --all [time_in_seconds]");
+    console.error("  Single video: node video-analyzer.js <local_video_path> [time_in_seconds] [--force]");
+    console.error("  All videos:   node video-analyzer.js --all [time_in_seconds] [--force]");
     console.error("");
     console.error("Examples:");
-    console.error('  node video-analyzer.js "./videos/sample.mp4" 10');
-    console.error('  node video-analyzer.js --all 5');
+    console.error('  node video-analyzer.js "./videos/sample.mp4" 10 --force');
+    console.error('  node video-analyzer.js --all 5 --force');
     console.error('  node video-analyzer.js --all');
     process.exit(1);
   }
 
   const firstArg = args[0];
+  const hasForce = args.includes("--force");
   
   if (firstArg === "--all") {
     // Batch processing mode
     const timeInSeconds = parseInt(args[1]) || 5;
     console.log("🚀 Starting batch processing mode...");
     console.log("⏰ Frame extraction time:", timeInSeconds, "seconds");
-    await processAllVideos(timeInSeconds);
+    if (hasForce) console.log("🔁 Force overwrite is ON");
+    await processAllVideos(timeInSeconds, hasForce);
   } else {
     // Single video mode
     const videoPath = firstArg;
-    const timeInSeconds = parseInt(args[1]) || 5;
-    await processSingleVideo(videoPath, timeInSeconds);
+    // time may be in args[1] or args[1] could be --force
+    const maybeTime = parseInt(args[1]);
+    const timeInSeconds = Number.isNaN(maybeTime) ? 5 : maybeTime;
+    if (hasForce) console.log("🔁 Force overwrite is ON");
+    await processSingleVideo(videoPath, timeInSeconds, hasForce);
   }
 }
 
