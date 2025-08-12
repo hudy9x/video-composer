@@ -2,15 +2,21 @@
  * Video Frame Analyzer
  *
  * This script extracts a frame from a local video file and analyzes it using Gemini AI
+ * Now supports batch processing of all videos in a folder
  *
  * Requirements:
  * - FFmpeg installed on system
  * - GEMINI_API_KEY environment variable set
  * - @google/generative-ai package installed
  *
- * Usage: node video-analyzer.js <local_video_path> [time_in_seconds]
- * Example: node video-analyzer.js "./videos/sample.mp4" 10
- * Example: node video-analyzer.js "C:/videos/movie.mp4" 5
+ * Usage: 
+ * - Single video: node video-analyzer.js <local_video_path> [time_in_seconds]
+ * - All videos: node video-analyzer.js --all [time_in_seconds]
+ * 
+ * Examples: 
+ * - node video-analyzer.js "./videos/sample.mp4" 10
+ * - node video-analyzer.js --all 5
+ * - node video-analyzer.js --all
  */
 require("dotenv").config();
 
@@ -21,6 +27,84 @@ const path = require("path");
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Configuration
+const VIDEO_FOLDER = path.join(__dirname, "../video");
+const TEMP_FOLDER = path.join(__dirname, "../temp");
+
+// Supported video extensions
+const VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm', '.m4v'];
+
+async function ensureDirectories() {
+  try {
+    await fs.mkdir(OUTPUT_FOLDER, { recursive: true });
+    await fs.mkdir(TEMP_FOLDER, { recursive: true });
+  } catch (error) {
+    console.error("Error creating directories:", error);
+  }
+}
+
+function getVideoNameWithoutExtension(videoPath) {
+  const basename = path.basename(videoPath);
+  const extension = path.extname(basename);
+  return basename.replace(extension, '');
+}
+
+function getOutputFileName(videoPath) {
+  const videoName = getVideoNameWithoutExtension(videoPath);
+  return `${videoName}-analysis.json`;
+}
+
+function getOutputFilePath(videoPath) {
+  const videoDir = path.dirname(videoPath);
+  const videoName = getVideoNameWithoutExtension(videoPath);
+  const outputFileName = `${videoName}-analysis.json`;
+  return path.join(videoDir, outputFileName);
+}
+
+async function isVideoAlreadyAnalyzed(videoPath) {
+  const outputPath = getOutputFilePath(videoPath);
+  try {
+    await fs.access(outputPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function getAllVideoFiles() {
+  const videoFiles = [];
+  
+  try {
+    // Get all subdirectories in the video folder
+    const items = await fs.readdir(VIDEO_FOLDER, { withFileTypes: true });
+    
+    for (const item of items) {
+      if (item.isDirectory()) {
+        const categoryPath = path.join(VIDEO_FOLDER, item.name);
+        
+        // Scan files in each category folder
+        try {
+          const categoryFiles = await fs.readdir(categoryPath);
+          
+          for (const file of categoryFiles) {
+            const ext = path.extname(file).toLowerCase();
+            if (VIDEO_EXTENSIONS.includes(ext)) {
+              videoFiles.push(path.join(categoryPath, file));
+            }
+          }
+        } catch (error) {
+          console.error(`Error scanning category folder ${categoryPath}:`, error);
+        }
+      }
+    }
+    
+    return videoFiles;
+  } catch (error) {
+    console.error("Error reading video folders:", error);
+    return [];
+  }
+}
 
 async function extractFrameFromVideo(videoPath, outputPath, timeInSeconds = 5) {
   return new Promise((resolve, reject) => {
@@ -116,24 +200,22 @@ async function cleanupFile(filePath) {
 }
 
 async function processVideoFrame(videoPath, timeInSeconds = 5) {
-  const date = new Date();
-  const tempImagePath = path.join(
-    __dirname,
-    `../temp/temp_frame_${date.getHours()}-${date.getMinutes()}.jpg`
-  );
+  const videoName = getVideoNameWithoutExtension(videoPath);
+  const tempImagePath = path.join(TEMP_FOLDER, `${videoName}_temp_frame.jpg`);
 
   try {
     // Extract frame from video
-    console.log("Extracting frame at ", timeInSeconds, " seconds from video: ", videoPath);
+    console.log("Extracting frame at", timeInSeconds, "seconds from video:", videoPath);
     await extractFrameFromVideo(videoPath, tempImagePath, timeInSeconds);
 
     // Analyze the extracted frame
-    console.log("Analyzing frame with Gemini: ", tempImagePath);
+    console.log("Analyzing frame with Gemini:", tempImagePath);
     const analysis = await analyzeImageWithGemini(tempImagePath);
 
     // Create final JSON response
     const result = {
       video_path: videoPath,
+      video_name: videoName,
       frame_time_seconds: timeInSeconds,
       extraction_timestamp: new Date().toISOString(),
       analysis: analysis,
@@ -144,6 +226,7 @@ async function processVideoFrame(videoPath, timeInSeconds = 5) {
   } catch (error) {
     return {
       video_path: videoPath,
+      video_name: videoName,
       frame_time_seconds: timeInSeconds,
       extraction_timestamp: new Date().toISOString(),
       error: error.message,
@@ -155,43 +238,170 @@ async function processVideoFrame(videoPath, timeInSeconds = 5) {
   }
 }
 
+async function processSingleVideo(videoPath, timeInSeconds = 5) {
+  console.log("\n" + "=".repeat(60));
+  console.log("Processing video:", videoPath);
+  console.log("Frame time:", timeInSeconds, "seconds");
+
+  // Check if already analyzed
+  if (await isVideoAlreadyAnalyzed(videoPath)) {
+    console.log("⚠️  Video already analyzed, skipping...");
+    const outputPath = getOutputFilePath(videoPath);
+    console.log("Existing analysis found at:", outputPath);
+    return { skipped: true, outputPath };
+  }
+
+  try {
+    const result = await processVideoFrame(videoPath, timeInSeconds);
+    
+    // Save result with video name
+    const outputPath = getOutputFilePath(videoPath);
+    await fs.writeFile(outputPath, JSON.stringify(result, null, 2));
+    
+    console.log("\n✅ Result:");
+    console.log(JSON.stringify(result, null, 2));
+    console.log("📁 Output saved to:", outputPath);
+    
+    return { success: true, result, outputPath };
+  } catch (error) {
+    console.error("❌ Error processing video:", error);
+    return { error: true, message: error.message };
+  }
+}
+
+async function processAllVideos(timeInSeconds = 5) {
+  console.log("🔍 Scanning for videos recursively in:", VIDEO_FOLDER);
+  
+  const videoFiles = await getAllVideoFiles();
+  
+  if (videoFiles.length === 0) {
+    console.log("❌ No video files found in the videos folder or its subfolders");
+    console.log("Supported extensions:", VIDEO_EXTENSIONS.join(", "));
+    return;
+  }
+
+  // Group videos by category for better display
+  const videosByCategory = {};
+  videoFiles.forEach(file => {
+    const category = path.basename(path.dirname(file));
+    if (!videosByCategory[category]) {
+      videosByCategory[category] = [];
+    }
+    videosByCategory[category].push(file);
+  });
+
+  console.log(`📹 Found ${videoFiles.length} video files in ${Object.keys(videosByCategory).length} categories:`);
+  Object.entries(videosByCategory).forEach(([category, files]) => {
+    console.log(`  📁 ${category}: ${files.length} videos`);
+    files.forEach((file, index) => {
+      console.log(`     ${index + 1}. ${path.basename(file)}`);
+    });
+  });
+
+  const results = {
+    total: videoFiles.length,
+    processed: 0,
+    skipped: 0,
+    errors: 0,
+    byCategory: {},
+    details: []
+  };
+
+  // Initialize category stats
+  Object.keys(videosByCategory).forEach(category => {
+    results.byCategory[category] = {
+      total: videosByCategory[category].length,
+      processed: 0,
+      skipped: 0,
+      errors: 0
+    };
+  });
+
+  for (let i = 0; i < videoFiles.length; i++) {
+    const videoPath = videoFiles[i];
+    const videoName = path.basename(videoPath);
+    const category = path.basename(path.dirname(videoPath));
+    
+    console.log(`\n🎬 Processing ${i + 1}/${videoFiles.length}: ${category}/${videoName}`);
+    
+    const result = await processSingleVideo(videoPath, timeInSeconds);
+    
+    // Update overall stats
+    if (result.skipped) {
+      results.skipped++;
+      results.byCategory[category].skipped++;
+    } else if (result.success) {
+      results.processed++;
+      results.byCategory[category].processed++;
+    } else {
+      results.errors++;
+      results.byCategory[category].errors++;
+    }
+    
+    results.details.push({
+      category: category,
+      video: videoName,
+      result: result
+    });
+  }
+
+  // Print summary
+  console.log("\n" + "=".repeat(60));
+  console.log("🎉 BATCH PROCESSING COMPLETE");
+  console.log("=".repeat(60));
+  console.log(`📊 Overall Summary:`);
+  console.log(`   Total videos: ${results.total}`);
+  console.log(`   ✅ Processed: ${results.processed}`);
+  console.log(`   ⚠️  Skipped: ${results.skipped}`);
+  console.log(`   ❌ Errors: ${results.errors}`);
+  
+  console.log(`\n📂 By Category:`);
+  Object.entries(results.byCategory).forEach(([category, stats]) => {
+    console.log(`   ${category}: ${stats.total} total (✅${stats.processed} ⚠️${stats.skipped} ❌${stats.errors})`);
+  });
+  
+  console.log(`\n📁 Output directory: ${OUTPUT_FOLDER}`);
+}
+
 // Main function to run the script
 async function main() {
   // Check if required environment variable is set
   if (!process.env.GEMINI_API_KEY) {
-    console.error("Error: GEMINI_API_KEY environment variable is required");
+    console.error("❌ Error: GEMINI_API_KEY environment variable is required");
     process.exit(1);
   }
 
-  // Get video path from command line arguments
-  const videoPath = process.argv[2];
-  const timeInSeconds = parseInt(process.argv[3]) || 5;
+  // Ensure directories exist
+  await ensureDirectories();
 
-  if (!videoPath) {
-    console.error(
-      "Usage: node video-analyzer.js <local_video_path> [time_in_seconds]"
-    );
-    console.error('Example: node video-analyzer.js "./videos/sample.mp4" 10');
-    console.error('Example: node video-analyzer.js "C:/videos/movie.mp4" 5');
+  // Parse command line arguments
+  const args = process.argv.slice(2);
+  
+  if (args.length === 0) {
+    console.error("Usage:");
+    console.error("  Single video: node video-analyzer.js <local_video_path> [time_in_seconds]");
+    console.error("  All videos:   node video-analyzer.js --all [time_in_seconds]");
+    console.error("");
+    console.error("Examples:");
+    console.error('  node video-analyzer.js "./videos/sample.mp4" 10');
+    console.error('  node video-analyzer.js --all 5');
+    console.error('  node video-analyzer.js --all');
     process.exit(1);
   }
 
-  console.log("Processing video:", videoPath);
-  console.log("Frame time:", timeInSeconds, "seconds");
-
-  try {
-    const result = await processVideoFrame(videoPath, timeInSeconds);
-    console.log("\nResult:");
-    console.log(JSON.stringify(result, null, 2));
-    const outputPath = path.join(
-      __dirname,
-      `../output/video-analysis-${new Date().toISOString()}.json`
-    );
-    await fs.writeFile(outputPath, JSON.stringify(result, null, 2));
-    console.log("Output saved to:", outputPath);
-  } catch (error) {
-    console.error("Error processing video:", error);
-    process.exit(1);
+  const firstArg = args[0];
+  
+  if (firstArg === "--all") {
+    // Batch processing mode
+    const timeInSeconds = parseInt(args[1]) || 5;
+    console.log("🚀 Starting batch processing mode...");
+    console.log("⏰ Frame extraction time:", timeInSeconds, "seconds");
+    await processAllVideos(timeInSeconds);
+  } else {
+    // Single video mode
+    const videoPath = firstArg;
+    const timeInSeconds = parseInt(args[1]) || 5;
+    await processSingleVideo(videoPath, timeInSeconds);
   }
 }
 
@@ -200,6 +410,10 @@ module.exports = {
   processVideoFrame,
   extractFrameFromVideo,
   analyzeImageWithGemini,
+  processSingleVideo,
+  processAllVideos,
+  getAllVideoFiles,
+  isVideoAlreadyAnalyzed
 };
 
 // Run main function if script is executed directly
