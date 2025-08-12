@@ -64,8 +64,12 @@ function getOutputFilePath(videoPath) {
 async function isVideoAlreadyAnalyzed(videoPath) {
   const outputPath = getOutputFilePath(videoPath);
   try {
-    await fs.access(outputPath);
-    return true;
+    const content = await fs.readFile(outputPath, 'utf-8');
+    const containsErrorMarker =
+      content.includes('# Video Frame Analysis Error') ||
+      content.includes('Status: error');
+    // Treat error-marked files as not analyzed so they can be retried
+    return !containsErrorMarker;
   } catch {
     return false;
   }
@@ -227,8 +231,8 @@ async function processVideoFrame(videoPath, timeInSeconds = 5) {
 
     return markdownDoc;
   } catch (error) {
-    const errorMarkdown = `# Video Frame Analysis Error\n\n- Video path: ${videoPath}\n- Frame time (s): ${timeInSeconds}\n- Extraction timestamp: ${new Date().toISOString()}\n- Status: error\n- Error: ${error.message}\n`;
-    return errorMarkdown;
+    // Propagate error so caller can decide not to write any file
+    throw new Error(`Video analysis failed for ${path.basename(videoPath)}: ${error.message}`);
   } finally {
     // Keep the extracted frame next to the video as requested
   }
@@ -249,16 +253,16 @@ async function processSingleVideo(videoPath, timeInSeconds = 5, force = false) {
 
   try {
     const markdown = await processVideoFrame(videoPath, timeInSeconds);
-    
+
     // Save result with video name
     const outputPath = getOutputFilePath(videoPath);
     await fs.writeFile(outputPath, markdown, "utf-8");
-    
+
     console.log("\n✅ Markdown analysis saved to:", outputPath);
-    
+
     return { success: true, outputPath, forced: force };
   } catch (error) {
-    console.error("❌ Error processing video:", error);
+    console.error("❌ Error processing video. Skipping write:", error.message);
     return { error: true, message: error.message };
   }
 }
