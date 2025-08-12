@@ -149,7 +149,7 @@ async function extractFrameFromVideo(videoPath, outputPath, timeInSeconds = 5) {
 
 async function analyzeImageWithGemini(imagePath) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Read the image file
     const imageData = await fs.readFile(imagePath);

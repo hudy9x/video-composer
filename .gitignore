@@ -18,6 +18,8 @@ video/wide-shot/*
 video/pov/*
 !video/pov/.keep
 
+video/all-videos.md
+
 
 audio/*
 !audio/.keep
