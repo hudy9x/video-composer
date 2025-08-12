@@ -37,7 +37,6 @@ const VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm
 
 async function ensureDirectories() {
   try {
-    await fs.mkdir(OUTPUT_FOLDER, { recursive: true });
     await fs.mkdir(TEMP_FOLDER, { recursive: true });
   } catch (error) {
     console.error("Error creating directories:", error);
@@ -52,13 +51,13 @@ function getVideoNameWithoutExtension(videoPath) {
 
 function getOutputFileName(videoPath) {
   const videoName = getVideoNameWithoutExtension(videoPath);
-  return `${videoName}-analysis.json`;
+  return `${videoName}-analysis.md`;
 }
 
 function getOutputFilePath(videoPath) {
   const videoDir = path.dirname(videoPath);
   const videoName = getVideoNameWithoutExtension(videoPath);
-  const outputFileName = `${videoName}-analysis.json`;
+  const outputFileName = `${videoName}-analysis.md`;
   return path.join(videoDir, outputFileName);
 }
 
@@ -164,26 +163,35 @@ async function analyzeImageWithGemini(imagePath) {
     };
 
     const prompt = `Analyze this image and provide a detailed description including objects, people, colors, setting, camera_angle, and any notable features. 
-        Format your response as a JSON object with keys: 'description', 'objects', 'colors', 'setting', 'people_count', 'camera_angle', and 'notable_features'.
-        Only return JSON object, no other text or comments. Do not wrap the JSON object in \`\`\`json \`\`\`.`;
+        Produce a clear, human-readable Markdown report with the following sections and headings:
+
+        # Description
+        A concise paragraph describing the scene. max (100 words)
+
+        # Objects
+        A bullet list of notable objects. max (3 objects)
+
+        # Colors
+        A bullet list of dominant colors. max (3 colors)
+
+        # Setting
+        A short description of the environment and context. max (50 words)
+
+        # People
+        Estimated people_count as an integer (if none, use 0) and a short note about appearance/pose. max (20 words)
+
+        # Camera Angle
+        One of: close-up, medium, wide, over-shoulder, POV, or other; include rationale. max (20 words)
+
+        # Notable Features
+        Bullet list of distinctive details. max (5 features)
+
+        Return only Markdown text (no code fences).`;
 
     const result = await model.generateContent([prompt, imagePart]);
     const response = await result.response;
     const text = response.text();
-
-    // Try to parse as JSON, fallback to structured response if parsing fails
-    try {
-      return JSON.parse(text);
-    } catch (parseError) {
-      // If Gemini doesn't return valid JSON, create a structured response
-      const jsonText = text.replace(/```json\n/, '').replace(/\n```/, '');
-      return {
-        raw_response: text,
-        json_response: JSON.parse(jsonText),
-        analysis_timestamp: new Date().toISOString(),
-        error: "Response was not in valid JSON format",
-      };
-    }
+    return text;
   } catch (error) {
     console.error("Error analyzing image with Gemini:", error);
     throw error;
@@ -210,28 +218,15 @@ async function processVideoFrame(videoPath, timeInSeconds = 5) {
 
     // Analyze the extracted frame
     console.log("Analyzing frame with Gemini:", tempImagePath);
-    const analysis = await analyzeImageWithGemini(tempImagePath);
+    const analysisMarkdown = await analyzeImageWithGemini(tempImagePath);
 
-    // Create final JSON response
-    const result = {
-      video_path: videoPath,
-      video_name: videoName,
-      frame_time_seconds: timeInSeconds,
-      extraction_timestamp: new Date().toISOString(),
-      analysis: analysis,
-      status: "success",
-    };
+    // Build Markdown document
+    const markdownDoc = `# Video Frame Analysis: ${videoName}\n\n- Video path: ${videoPath}\n- Frame time (s): ${timeInSeconds}\n- Extraction timestamp: ${new Date().toISOString()}\n\n---\n\n## AI Analysis\n\n${analysisMarkdown}\n`;
 
-    return result;
+    return markdownDoc;
   } catch (error) {
-    return {
-      video_path: videoPath,
-      video_name: videoName,
-      frame_time_seconds: timeInSeconds,
-      extraction_timestamp: new Date().toISOString(),
-      error: error.message,
-      status: "error",
-    };
+    const errorMarkdown = `# Video Frame Analysis Error\n\n- Video path: ${videoPath}\n- Frame time (s): ${timeInSeconds}\n- Extraction timestamp: ${new Date().toISOString()}\n- Status: error\n- Error: ${error.message}\n`;
+    return errorMarkdown;
   } finally {
     // Clean up temporary file
     await cleanupFile(tempImagePath);
@@ -252,17 +247,15 @@ async function processSingleVideo(videoPath, timeInSeconds = 5) {
   }
 
   try {
-    const result = await processVideoFrame(videoPath, timeInSeconds);
+    const markdown = await processVideoFrame(videoPath, timeInSeconds);
     
     // Save result with video name
     const outputPath = getOutputFilePath(videoPath);
-    await fs.writeFile(outputPath, JSON.stringify(result, null, 2));
+    await fs.writeFile(outputPath, markdown, "utf-8");
     
-    console.log("\n✅ Result:");
-    console.log(JSON.stringify(result, null, 2));
-    console.log("📁 Output saved to:", outputPath);
+    console.log("\n✅ Markdown analysis saved to:", outputPath);
     
-    return { success: true, result, outputPath };
+    return { success: true, outputPath };
   } catch (error) {
     console.error("❌ Error processing video:", error);
     return { error: true, message: error.message };
@@ -360,7 +353,7 @@ async function processAllVideos(timeInSeconds = 5) {
     console.log(`   ${category}: ${stats.total} total (✅${stats.processed} ⚠️${stats.skipped} ❌${stats.errors})`);
   });
   
-  console.log(`\n📁 Output directory: ${OUTPUT_FOLDER}`);
+  console.log(`\n📁 Output files are saved next to their source videos.`);
 }
 
 // Main function to run the script
