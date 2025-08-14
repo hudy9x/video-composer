@@ -157,13 +157,13 @@ function splitSegmentsByWords(segments, maxWords = CONFIG.maxWordsPerSegment) {
 }
 
 // Advanced splitting using Whisper's word-level timestamps
-async function transcribeWithWordTimestamps(audioPath) {
+async function transcribeWithWordTimestamps(audioPath, outputDir) {
   console.log('🎤 Transcribing with word-level timestamps...');
   
   const args = [
     audioPath,
     '--model', CONFIG.whisperModel,
-    '--output_dir', CONFIG.tempDir,
+    '--output_dir', outputDir,
     '--output_format', 'json', // Use JSON for word timestamps
     '--word_timestamps', 'True',
     '--verbose', 'False'
@@ -178,7 +178,7 @@ async function transcribeWithWordTimestamps(audioPath) {
     
     // Find the generated JSON file
     const baseFilename = path.parse(audioPath).name;
-    const jsonPath = path.join(CONFIG.tempDir, `${baseFilename}.json`);
+    const jsonPath = path.join(outputDir, `${baseFilename}.json`);
     
     const jsonContent = await fs.readFile(jsonPath, 'utf8');
     const whisperData = JSON.parse(jsonContent);
@@ -324,13 +324,13 @@ async function convertToWav(inputPath) {
   return wavPath;
 }
 
-async function transcribeWithWhisper(audioPath) {
+async function transcribeWithWhisper(audioPath, outputDir) {
   console.log('🎤 Transcribing audio with Whisper...');
   
   const args = [
     audioPath,
     '--model', CONFIG.whisperModel,
-    '--output_dir', CONFIG.tempDir,
+    '--output_dir', outputDir,
     '--output_format', 'vtt',
     '--verbose', 'False'
   ];
@@ -343,7 +343,7 @@ async function transcribeWithWhisper(audioPath) {
     await runCommand('whisper', args);
     
     const baseFilename = path.parse(audioPath).name;
-    const vttPath = path.join(CONFIG.tempDir, `${baseFilename}.vtt`);
+    const vttPath = path.join(outputDir, `${baseFilename}.vtt`);
     
     const vttContent = await fs.readFile(vttPath, 'utf8');
     console.log('✓ Transcription completed');
@@ -361,6 +361,7 @@ async function speechToText(mp3Path, outputJsonPath = null, splitMethod = 'time'
   await ensureDirectories();
   
   let wavPath = null;
+  const originalAudioDir = path.dirname(mp3Path);
   
   try {
     await fs.access(mp3Path);
@@ -371,7 +372,7 @@ async function speechToText(mp3Path, outputJsonPath = null, splitMethod = 'time'
     // Try word-level timestamps first if enabled
     if (CONFIG.enableWordTimestamps && splitMethod === 'word-timestamps') {
       console.log('🔍 Attempting word-level timestamp extraction...');
-      const whisperData = await transcribeWithWordTimestamps(wavPath);
+      const whisperData = await transcribeWithWordTimestamps(mp3Path, originalAudioDir);
       
       if (whisperData) {
         segments = createSegmentsFromWordTimestamps(whisperData);
@@ -382,7 +383,7 @@ async function speechToText(mp3Path, outputJsonPath = null, splitMethod = 'time'
     // Fallback to VTT parsing if word timestamps failed
     if (segments.length === 0) {
       console.log('📝 Using VTT parsing method...');
-      const whisperOutput = await transcribeWithWhisper(wavPath);
+      const whisperOutput = await transcribeWithWhisper(mp3Path, originalAudioDir);
       segments = parseWhisperOutput(whisperOutput);
       
       // Apply splitting method
