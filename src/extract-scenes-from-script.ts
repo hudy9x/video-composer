@@ -46,6 +46,9 @@ interface Scene {
 
 class VTTSceneGenerator {
   private genAI: GoogleGenerativeAI;
+  private availableVideosByFolder: Record<string, string[]> = {};
+  private availableVideoNames: Set<string> = new Set();
+  private videoNameToFolder: Record<string, string> = {};
   
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
@@ -100,7 +103,7 @@ class VTTSceneGenerator {
   }
 
   // Generate AI prompt for scene analysis
-  private generatePrompt(segments: VTTSegment[]): string {
+  private generatePrompt(segments: VTTSegment[], videoInventoryMd: string): string {
     const sceneTypes = CONFIG.SCENE_TYPES.join(', ');
     const context = CONFIG.AI_INSTRUCTIONS.CONTEXT;
     const tone = CONFIG.AI_INSTRUCTIONS.TONE;
@@ -119,11 +122,21 @@ Shot type guidelines:
 - medium-shot: Standard talking head, explanations, main content delivery
 - wide-shot: Overview shots, context setting, longer segments
 
-Consider these factors:
+ Consider these factors:
 - Content type and mood of each segment
 - Duration of each segment (shorter = closer shots, longer = wider shots)
 - ${variety}
 - Technical content vs personal content
+
+  You have the following video inventory. When selecting the "video" field, you MUST choose a value exactly matching a Video name listed below (e.g. C0005, C0289, C0006_9-16).
+
+  CRITICAL RULES FOR OUTPUT FIELDS:
+  - The "scene" value MUST be exactly one of the Video folder names from the inventory (e.g. "b-roll", "close-shot", "medium-shot", "wide-shot", "pov", "over-shoulder").
+  - The "scene" value MUST match the folder of the selected "video". Do not output a scene that does not correspond to the chosen video's folder.
+  - Prefer choosing a video whose folder best fits the segment content and duration.
+
+ Video inventory (verbatim contents of all-videos.md):
+ ${videoInventoryMd}
 
 Script segments:
 ${segments.map((seg, index) => 
@@ -139,19 +152,26 @@ Respond with ONLY a JSON array in this exact format:
   }
 ]
 
-Make sure:
+ Make sure:
 1. Each segment gets exactly one scene entry
 2. The time matches the segment duration exactly
-3. Video names follow the C0001, C0002, etc. format
-4. Use only the provided shot types
-5. Ensure good variety and avoid repetitive patterns`;
+  3. The video value is one of the Video name entries from the inventory above
+  4. The scene value is exactly the folder name of the selected video
+  5. Ensure good variety and avoid repetitive patterns`;
   }
 
   // Call Gemini API to analyze segments
   async analyzeWithAI(segments: VTTSegment[]): Promise<Scene[]> {
     try {
       const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
-      const prompt = this.generatePrompt(segments);
+      const inventory = this.loadVideoInventory();
+      // Parse inventory to enable validation and fallbacks
+      const { byFolder, allNames, nameToFolder } = this.parseVideoInventory(inventory);
+      this.availableVideosByFolder = byFolder;
+      this.availableVideoNames = allNames;
+      this.videoNameToFolder = nameToFolder;
+
+      const prompt = this.generatePrompt(segments, inventory);
       
       console.log('Analyzing script with AI...');
       console.log('Prompt:', prompt);
@@ -185,21 +205,27 @@ Make sure:
     
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
-      const scene = scenes[i] || {};
+      const scene = (scenes[i] as Partial<Scene>) || {};
       
-      // Ensure scene type is valid
-      const sceneType = CONFIG.SCENE_TYPES.includes(scene.scene) 
-        ? scene.scene 
+      // Determine intended scene folder (may be overridden by selected video folder)
+      const sceneTypeCandidate = typeof scene.scene === 'string' ? scene.scene : '';
+      const sceneType = CONFIG.SCENE_TYPES.includes(sceneTypeCandidate)
+        ? sceneTypeCandidate
         : this.suggestSceneType(segment);
       
       // Ensure time matches segment duration
       const time = this.formatDuration(segment.duration);
       
-      // Ensure video name follows correct format
-      const video = `C${String(i + 1).padStart(4, '0')}`;
+      // Preserve AI-chosen video if it exists in inventory; otherwise select a reasonable fallback
+      const aiVideo = typeof scene.video === 'string' ? scene.video.trim() : '';
+      const video = this.selectBestVideo(aiVideo, sceneType);
+
+      // Ensure scene matches the folder of the selected video
+      const folderOfVideo = this.videoNameToFolder[video];
+      const finalScene = folderOfVideo || sceneType;
       
       validatedScenes.push({
-        scene: sceneType,
+        scene: finalScene,
         time: time,
         video: video
       });
@@ -237,6 +263,88 @@ Make sure:
     
     // Default fallback
     return 'medium-shot';
+  }
+
+  // Load all-videos.md content
+  private loadVideoInventory(): string {
+    try {
+      const filePath = path.join(__dirname, '../video/all-videos.md');
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        console.log('Loaded video inventory from all-videos.md');
+        return content;
+      }
+      console.warn('Video inventory file not found at', filePath);
+      return '';
+    } catch (err) {
+      console.warn('Failed to load video inventory:', err);
+      return '';
+    }
+  }
+
+  // Parse inventory to map folders to video names and a set of all names
+  private parseVideoInventory(md: string): { byFolder: Record<string, string[]>; allNames: Set<string>; nameToFolder: Record<string, string> } {
+    const byFolder: Record<string, string[]> = {};
+    const allNames = new Set<string>();
+    const nameToFolder: Record<string, string> = {};
+    if (!md) return { byFolder, allNames, nameToFolder };
+
+    const lines = md.split(/\r?\n/);
+    let currentFolder: string | null = null;
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      const folderMatch = line.match(/^Video folder:\s*(.+)$/i);
+      if (folderMatch) {
+        currentFolder = folderMatch[1].trim();
+        if (!byFolder[currentFolder]) byFolder[currentFolder] = [];
+        continue;
+      }
+      const nameMatch = line.match(/^Video name:\s*(.+)$/i);
+      if (nameMatch) {
+        const name = nameMatch[1].trim();
+        if (name) {
+          allNames.add(name);
+          if (currentFolder) {
+            byFolder[currentFolder] = byFolder[currentFolder] || [];
+            byFolder[currentFolder].push(name);
+            nameToFolder[name] = currentFolder;
+          }
+        }
+      }
+    }
+    return { byFolder, allNames, nameToFolder };
+  }
+
+  // Choose the best available video name
+  private selectBestVideo(aiVideo: string, sceneType: string): string {
+    // If AI provided a valid video name from inventory, keep it
+    if (aiVideo && this.availableVideoNames.has(aiVideo)) {
+      return aiVideo;
+    }
+
+    // Map scene type to preferred folder
+    const folderByScene: Record<string, string> = {
+      'b-roll': 'b-roll',
+      'a-roll': 'medium-shot', // fallback: no explicit a-roll folder, use medium-shot
+      'close-shot': 'close-shot',
+      'medium-shot': 'medium-shot',
+      'wide-shot': 'wide-shot'
+    };
+
+    const preferredFolder = folderByScene[sceneType] || 'b-roll';
+    const candidates = this.availableVideosByFolder[preferredFolder] || [];
+    if (candidates.length > 0) {
+      return candidates[0];
+    }
+
+    // Fallback to any available video
+    const any = [...this.availableVideoNames];
+    if (any.length > 0) {
+      return any[0];
+    }
+
+    // Ultimate fallback: deterministic synthetic name as before
+    return 'C0001';
   }
 
   // Main processing function
