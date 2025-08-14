@@ -28,7 +28,7 @@ function generateTimestampInGmtPlus7() {
 // ===== CONFIGURATION =====
 const CONFIG = {
   // Audio file path (change this to your audio file)
-  audioPath: path.join(__dirname, '../audio/hudy-style-40.mp3'),
+  audioPath: path.join(__dirname, '../audio/vlog-07-20.mp3'),
 
   // Final output filename
   finalOutputName: `final_video_${generateTimestampInGmtPlus7()}.mp4`,
@@ -46,49 +46,59 @@ const CONFIG = {
 
 const scenes = [
   {
-    "scene": "b-roll",
-    "time": "4s",
-    "video": "C0006"
-  },
-  {
-    "scene": "b-roll",
-    "time": "3s",
-    "video": "C0014"
-  },
-  {
-    "scene": "close-shot",
-    "time": "4s",
-    "video": "C0004"
-  },
-  {
-    "scene": "close-shot",
-    "time": "3s",
-    "video": "C0005"
+    "scene": "wide-shot",
+    "time": "11s",
+    "video": "C0289"
   },
   {
     "scene": "medium-shot",
-    "time": "4s",
+    "time": "7s",
     "video": "C0053"
   },
   {
-    "scene": "medium-shot",
-    "time": "3s",
-    "video": "C0061"
+    "scene": "close-shot",
+    "time": "5s",
+    "video": "C0037"
   },
   {
-    "scene": "pov",
-    "time": "4s",
-    "video": "C0066"
+    "scene": "b-roll",
+    "time": "8s",
+    "video": "C0015"
+  },
+  {
+    "scene": "close-shot",
+    "time": "10s",
+    "video": "C0012"
+  },
+  {
+    "scene": "close-shot",
+    "time": "10s",
+    "video": "C0005"
+  },
+  {
+    "scene": "b-roll",
+    "time": "6s",
+    "video": "C0281"
   },
   {
     "scene": "wide-shot",
-    "time": "4s",
-    "video": "C0283"
-  },
-  {
-    "scene": "wide-shot",
-    "time": "3s",
+    "time": "7s",
     "video": "C0288"
+  },
+  {
+    "scene": "close-shot",
+    "time": "2s",
+    "video": "C0036"
+  },
+  {
+    "scene": "close-shot",
+    "time": "4s",
+    "video": "C0013"
+  },
+  {
+    "scene": "b-roll",
+    "time": "4s",
+    "video": "C0006"
   }
 ];
 
