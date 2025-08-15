@@ -7,7 +7,7 @@ import { FFmpegCommandBuilder, run as runFFmpeg } from '../lib/ffmpeg';
 import { StyleManager } from './styles';
 import { ValidationService, DisplayService, FFmpegService } from './services';
 import { FontPathProcessor, MultiLineProcessor, ProcessingContext } from './processors';
-import { ConfigFactory } from "./config";
+import { defaultConfig } from "./config";
 import { ArgumentParser } from "./cli/ArgumentParser";
 
 export class VideoTextApplication {
@@ -101,7 +101,7 @@ async function main(): Promise<void> {
   const { inputFile, outputFile } = ArgumentParser.parseArguments();
   
   // Load configuration and create application
-  const config = ConfigFactory.createDefaultConfig();
+  const config = defaultConfig;
   const app = new VideoTextApplication(config);
   
   // Process video with text overlays

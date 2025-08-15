@@ -49,7 +49,7 @@ If no output file is specified, the system automatically generates a filename:
 
 ### Configuration
 
-Text overlays are configured through the `ConfigFactory.createDefaultConfig()` method. The current configuration includes:
+Text overlays are configured through the `createDefaultConfig()` function. The current configuration includes:
 
 - **Multi-line text support** with `\n` line breaks
 - **Word-level styling** using `textElements` array
@@ -112,9 +112,7 @@ src/caption/
 ├── README.md                   # This documentation
 ├── type.ts                     # TypeScript interfaces and types
 ├── cli.ts                      # Legacy CLI (deprecated)
-├── config/                     # Configuration management
-│   ├── ConfigFactory.ts        # Factory pattern for config creation
-│   └── index.ts               # Module exports
+├── config.ts                  # Configuration management
 ├── cli/                       # Command-line interface
 │   ├── ArgumentParser.ts       # CLI argument parsing
 │   └── index.ts               # Module exports
@@ -160,13 +158,12 @@ export class VideoTextApplication {
 ```
 
 ### 2. Factory Pattern
-**Location**: `config/ConfigFactory.ts`
+**Location**: `config.ts`
 
 Creates configuration objects with predefined settings.
 
 ```typescript
-export class ConfigFactory {
-  static createDefaultConfig(): Config {
+export function createDefaultConfig(): Config {
     return {
       textOverlays: [
         {
@@ -269,7 +266,7 @@ export class DisplayService {
 ```typescript
 #!/usr/bin/env node
 
-import { ConfigFactory } from "./config";
+import { createDefaultConfig } from "./config";
 import { VideoTextApplication } from "./index";
 import { ArgumentParser } from "./cli/ArgumentParser";
 import { FFmpegService } from "./services";
@@ -282,7 +279,7 @@ async function main(): Promise<void> {
   const { inputFile, outputFile } = ArgumentParser.parseArguments();
   
   // Load configuration and create application
-  const config = ConfigFactory.createDefaultConfig();
+  const config = createDefaultConfig();
   const app = new VideoTextApplication(config);
   
   // Process video with text overlays
@@ -430,7 +427,7 @@ export interface ProcessingContext {
 The refactored system seamlessly integrates with the existing font classes:
 
 ```typescript
-// In ConfigFactory
+// In config.ts
 fontFamily: new Fonts_DMSerifDisplayItalic(),
 
 // In FontPathProcessor
@@ -485,12 +482,12 @@ const textFilters = processedOverlays.map((overlay) =>
 
 ```typescript
 // Simple usage
-const config = ConfigFactory.createDefaultConfig();
+const config = createDefaultConfig();
 const app = new VideoTextApplication(config);
 await app.processVideo("input.mp4", "output.mp4");
 
 // Custom configuration
-const customConfig = ConfigFactory.loadFromFile("custom-config.json");
+const customConfig = loadConfigFromFile("custom-config.json");
 const app = new VideoTextApplication(customConfig);
 await app.processVideo("input.mp4", "output.mp4");
 
