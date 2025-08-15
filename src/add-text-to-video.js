@@ -11,20 +11,94 @@ const CONFIG = {
   // Array of text overlays - each with its own timing and styling
   textOverlays: [
     {
-      // Multi-line text example - use \n for line breaks
+      // Multi-line text example with word-level styling
       text: 'ChatGPT\nprompt for\nimages',
+      
+      // NEW: Word-level styling (optional)
+      textElements: [
+        {
+          text: 'ChatGPT',
+          line: 0,
+          // Uses default styles from parent
+        },
+        {
+          text: 'prompt for',
+          line: 1,
+          // Uses default styles from parent
+        },
+        {
+          text: 'images',
+          line: 2,
+          // Custom styling for this word only
+          fontSize: 8,                    // Bigger than default
+          fontColor: 'gold',              // Different color
+          textOutline: { enabled: true, color: 'red', width: 4 }, // Red outline
+          textShadow: { enabled: true, color: 'purple', offsetX: 3, offsetY: 3 }, // Purple shadow
+          animation: { enabled: true, type: 'fade', duration: 1.0 }, // Different animation
+          
+          // Different timing - appears after other text
+          startTime: 5,  // Starts 3 seconds after "ChatGPT prompt for"
+          endTime: 9
+        }
+      ],
+      
+      // Default styles (inherited by all textElements unless overridden)
       startTime: 2,
       endTime: 7,
       
-      fontSize: 8,  // 6% of video height - will scale automatically
-      fontFamily: 'Cookie-Regular.ttf',
+      fontSize: 6,  // 6% of video height - will scale automatically
+      fontFamily: 'DMSerifDisplay-Italic.ttf',
       fontColor: 'white',
       
-      // Position for the entire text block - will be auto-centered
+      // Position for the entire text block - will be auto-positioned
       position: { x: '50%', y: '50%' },
       
       // Text alignment for multi-line text: 'left', 'center', 'right'
-      textAlign: 'right',
+      textAlign: 'center',
+      
+      textOutline: {
+        enabled: true,
+        color: 'black',
+        width: 3
+      },
+      
+      textShadow: {
+        enabled: true,
+        color: 'black',
+        offsetX: 2,
+        offsetY: 2
+      },
+      
+      textBox: {
+        enabled: false,
+        color: 'black@0.5',
+        padding: 10
+      },
+      
+      animation: {
+        enabled: true,
+        type: 'fade',
+        duration: 0.5
+      }
+    },
+
+    {
+      // Multi-line text example with word-level styling
+      text: 'I am a\nsoftware engineer',
+      
+      // Default styles (inherited by all textElements unless overridden)
+      startTime: 10,
+      endTime: 14,
+      
+      fontSize: 5,  // 6% of video height - will scale automatically
+      fontFamily: 'DMSerifDisplay-Italic.ttf',
+      fontColor: 'white',
+      
+      // Position for the entire text block - will be auto-positioned
+      position: { x: '50%', y: '50%' },
+      
+      // Text alignment for multi-line text: 'left', 'center', 'right'
+      textAlign: 'center',
       
       textOutline: {
         enabled: true,
@@ -85,6 +159,12 @@ Multi-line Text:
   - Use \\n for line breaks: "Line 1\\nLine 2\\nLine 3"
   - Text blocks are automatically centered as a group
   - Use textAlign: 'left', 'center', 'right' to control horizontal alignment
+
+Word-Level Styling (Advanced):
+  - Use textElements array for individual word styling
+  - Each word can have different fontSize, fontColor, animation, timing, etc.
+  - Words inherit default styles unless overridden
+  - Example: Different animation timing per word
 
 Font Setup:
   Place your font files (.ttf, .otf) in a './fonts' folder
@@ -197,6 +277,12 @@ function calculateFontSize(fontSize, videoHeight, silent = false) {
 }
 
 function parseMultiLineText(overlay, videoHeight) {
+  // Check if textElements is provided (new word-level styling)
+  if (overlay.textElements && overlay.textElements.length > 0) {
+    return parseTextElements(overlay, videoHeight);
+  }
+  
+  // Fallback to original multi-line parsing
   const lines = overlay.text.split('\n');
   
   // If single line, return as-is
@@ -229,6 +315,87 @@ function parseMultiLineText(overlay, videoHeight) {
     _lineIndex: index,
     _totalLines: lines.length
   }));
+}
+
+function parseTextElements(overlay, videoHeight) {
+  // Group elements by line to calculate line heights
+  const lineGroups = {};
+  overlay.textElements.forEach(element => {
+    if (!lineGroups[element.line]) {
+      lineGroups[element.line] = [];
+    }
+    lineGroups[element.line].push(element);
+  });
+  
+  // Calculate the maximum font size per line for proper spacing
+  const lineHeights = {};
+  const lineSpacing = 1.2;
+  
+  Object.keys(lineGroups).forEach(lineNum => {
+    const elements = lineGroups[lineNum];
+    const maxFontSize = Math.max(...elements.map(el => {
+      const fontSize = el.fontSize !== undefined ? el.fontSize : overlay.fontSize;
+      return calculateFontSize(fontSize, videoHeight, true);
+    }));
+    lineHeights[lineNum] = maxFontSize * lineSpacing;
+  });
+  
+  // Calculate total height of all lines
+  const sortedLines = Object.keys(lineHeights).sort((a, b) => parseInt(a) - parseInt(b));
+  const totalHeight = sortedLines.reduce((sum, lineNum) => sum + lineHeights[lineNum], 0);
+  
+  // Calculate starting Y position
+  const startingY = calculateStartingYForBlock(overlay.position.y, totalHeight, videoHeight);
+  
+  // Calculate Y position for each line
+  const lineYPositions = {};
+  let currentY = startingY;
+  sortedLines.forEach(lineNum => {
+    lineYPositions[lineNum] = currentY;
+    currentY += lineHeights[lineNum];
+  });
+  
+  // Create overlay for each text element
+  return overlay.textElements.map((element, index) => {
+    // Merge default overlay properties with element-specific overrides
+    const mergedElement = {
+      ...overlay,  // Start with all default properties
+      ...element,  // Override with element-specific properties
+      text: element.text,  // Ensure text is from element
+      position: {
+        x: overlay.position.x,
+        y: lineYPositions[element.line]
+      },
+      textAlign: element.textAlign || overlay.textAlign || 'center',
+      
+      // Merge nested objects properly
+      textOutline: {
+        ...overlay.textOutline,
+        ...(element.textOutline || {})
+      },
+      textShadow: {
+        ...overlay.textShadow,
+        ...(element.textShadow || {})
+      },
+      textBox: {
+        ...overlay.textBox,
+        ...(element.textBox || {})
+      },
+      animation: {
+        ...overlay.animation,
+        ...(element.animation || {})
+      },
+      
+      // Add metadata
+      _isTextElement: true,
+      _originalText: overlay.text,
+      _elementIndex: index,
+      _totalElements: overlay.textElements.length,
+      _lineIndex: element.line
+    };
+    
+    return mergedElement;
+  });
 }
 
 function calculateStartingYForBlock(originalY, totalHeight, videoHeight) {
@@ -393,22 +560,22 @@ function buildTextFilter(overlay, videoHeight) {
   drawtext += `:x=${coordinates.split(':')[0]}:y=${coordinates.split(':')[1]}`;
   
   // Text outline
-  if (overlay.textOutline.enabled) {
+  if (overlay.textOutline && overlay.textOutline.enabled) {
     drawtext += `:borderw=${overlay.textOutline.width}:bordercolor=${overlay.textOutline.color}`;
   }
   
   // Text shadow
-  if (overlay.textShadow.enabled) {
+  if (overlay.textShadow && overlay.textShadow.enabled) {
     drawtext += `:shadowx=${overlay.textShadow.offsetX}:shadowy=${overlay.textShadow.offsetY}:shadowcolor=${overlay.textShadow.color}`;
   }
   
   // Background box
-  if (overlay.textBox.enabled) {
+  if (overlay.textBox && overlay.textBox.enabled) {
     drawtext += `:box=1:boxcolor=${overlay.textBox.color}:boxborderw=${overlay.textBox.padding}`;
   }
   
   // Timing - always apply start and end time
-  if (overlay.animation.enabled && overlay.animation.type === 'fade') {
+  if (overlay.animation && overlay.animation.enabled && overlay.animation.type === 'fade') {
     // Fade animation with timing
     const fadeInDuration = overlay.animation.duration;
     const fadeOutDuration = overlay.animation.duration;
@@ -424,7 +591,7 @@ function buildTextFilter(overlay, videoHeight) {
       // If fade duration is too long, just show/hide at start/end times
       drawtext += `:enable='between(t,${overlay.startTime},${overlay.endTime})'`;
     }
-  } else if (overlay.animation.enabled && overlay.animation.type === 'slide-in') {
+  } else if (overlay.animation && overlay.animation.enabled && overlay.animation.type === 'slide-in') {
     // Slide-in animation
     const slideInEnd = overlay.startTime + overlay.animation.duration;
     drawtext += `:enable='between(t,${overlay.startTime},${overlay.endTime})'`;
@@ -506,13 +673,14 @@ function displayConfig(inputFile, outputFile, validatedOverlays, videoDimensions
   let overlayCounter = 1;
   
   validatedOverlays.forEach((overlay) => {
-    if (overlay._isMultiLine) {
-      // Multi-line text
+    if (overlay._isMultiLine || overlay._isTextElement) {
+      // Multi-line text or text elements
       const originalText = overlay._originalText;
       if (!groupedOverlays[originalText]) {
         groupedOverlays[originalText] = {
           counter: overlayCounter++,
-          overlays: []
+          overlays: [],
+          isTextElements: overlay._isTextElement
         };
       }
       groupedOverlays[originalText].overlays.push(overlay);
@@ -520,18 +688,26 @@ function displayConfig(inputFile, outputFile, validatedOverlays, videoDimensions
       // Single line text
       groupedOverlays[overlay.text] = {
         counter: overlayCounter++,
-        overlays: [overlay]
+        overlays: [overlay],
+        isTextElements: false
       };
     }
   });
   
   Object.entries(groupedOverlays).forEach(([originalText, group]) => {
     const firstOverlay = group.overlays[0];
-    const isMultiLine = firstOverlay._isMultiLine;
     
     console.log(`  Text ${group.counter}:`);
     
-    if (isMultiLine) {
+    if (group.isTextElements) {
+      console.log(`    Text:        "${originalText}" (${group.overlays.length} text elements)`);
+      group.overlays.forEach((overlay, index) => {
+        const timing = overlay.startTime !== firstOverlay.startTime || overlay.endTime !== firstOverlay.endTime 
+          ? ` (${overlay.startTime}s-${overlay.endTime}s)` 
+          : '';
+        console.log(`      Element ${index + 1}: "${overlay.text}" on line ${overlay._lineIndex}${timing}`);
+      });
+    } else if (firstOverlay._isMultiLine) {
       console.log(`    Text:        "${originalText}" (${group.overlays.length} lines)`);
       group.overlays.forEach((overlay, index) => {
         console.log(`      Line ${index + 1}:   "${overlay.text}"`);
@@ -559,13 +735,13 @@ function displayConfig(inputFile, outputFile, validatedOverlays, videoDimensions
     
     // Display position - show original for multi-line, actual for single line
     let positionDisplay;
-    if (isMultiLine) {
+    if (group.isTextElements || firstOverlay._isMultiLine) {
       // Show the original intended position
       const originalPosition = CONFIG.textOverlays.find(o => o.text === originalText)?.position;
       if (typeof originalPosition === 'object') {
-        positionDisplay = `x: ${originalPosition.x}, y: ${originalPosition.y} (auto-centered block)`;
+        positionDisplay = `x: ${originalPosition.x}, y: ${originalPosition.y} (auto-positioned)`;
       } else {
-        positionDisplay = `${originalPosition} (auto-centered block)`;
+        positionDisplay = `${originalPosition} (auto-positioned)`;
       }
     } else {
       if (typeof firstOverlay.position === 'object') {
