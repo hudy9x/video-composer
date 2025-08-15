@@ -118,9 +118,7 @@ src/caption/
 ├── cli/                       # Command-line interface
 │   ├── ArgumentParser.ts       # CLI argument parsing
 │   └── index.ts               # Module exports
-├── core/                      # Application core logic
-│   ├── VideoTextApplication.ts # Main application facade
-│   └── index.ts               # Module exports
+
 ├── services/                  # Business services
 │   ├── ValidationService.ts    # Input validation
 │   ├── DisplayService.ts       # Console output formatting
@@ -140,7 +138,7 @@ src/caption/
 ## Design Patterns Applied
 
 ### 1. Facade Pattern
-**Location**: `core/VideoTextApplication.ts`
+**Location**: `index.ts` (VideoTextApplication class)
 
 The main application facade that provides a simple interface to the complex video processing system.
 
@@ -272,7 +270,7 @@ export class DisplayService {
 #!/usr/bin/env node
 
 import { ConfigFactory } from "./config";
-import { VideoTextApplication } from "./core";
+import { VideoTextApplication } from "./index";
 import { ArgumentParser } from "./cli/ArgumentParser";
 import { FFmpegService } from "./services";
 
