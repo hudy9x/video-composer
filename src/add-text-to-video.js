@@ -16,13 +16,15 @@ const CONFIG = {
       startTime: 2,
       endTime: 7,
       
-      fontSize: 6,  // 6% of video height - will scale automatically
-      fontFamily: 'DMSerifDisplay-Italic.ttf',
+      fontSize: 8,  // 6% of video height - will scale automatically
+      fontFamily: 'Cookie-Regular.ttf',
       fontColor: 'white',
       
       // Position for the entire text block - will be auto-centered
       position: { x: '50%', y: '50%' },
-      textAlign: 'left',
+      
+      // Text alignment for multi-line text: 'left', 'center', 'right'
+      textAlign: 'right',
       
       textOutline: {
         enabled: true,
@@ -78,6 +80,11 @@ Font Size System:
     Examples: fontSize: 2.5 = 2.5% of video height, fontSize: 8 = 8% of video height
   - fontSize > 20: Fixed pixel size (backward compatibility)
     Examples: fontSize: 120 = 120 pixels exactly
+
+Multi-line Text:
+  - Use \\n for line breaks: "Line 1\\nLine 2\\nLine 3"
+  - Text blocks are automatically centered as a group
+  - Use textAlign: 'left', 'center', 'right' to control horizontal alignment
 
 Font Setup:
   Place your font files (.ttf, .otf) in a './fonts' folder
@@ -214,6 +221,8 @@ function parseMultiLineText(overlay, videoHeight) {
       x: overlay.position.x,
       y: startingY + (index * lineHeight)
     },
+    // Pass through textAlign for positioning
+    textAlign: overlay.textAlign || 'center',
     // Add metadata for display purposes
     _isMultiLine: true,
     _originalText: overlay.text,
@@ -293,24 +302,48 @@ function validateConfig(videoHeight) {
   return validatedOverlays;
 }
 
-function getPositionCoordinates(position, videoWidth = 1920, videoHeight = 1080) {
+function getPositionCoordinates(position, videoWidth = 1920, videoHeight = 1080, textAlign = 'center') {
   if (typeof position === 'object' && position.x !== undefined && position.y !== undefined) {
     let x, y;
     
-    // Handle X coordinate
+    // Handle X coordinate with text alignment
     if (typeof position.x === 'string' && position.x.includes('%')) {
-      // Percentage positioning: '50%' -> w*0.5-text_w/2
       const percentage = parseFloat(position.x.replace('%', '')) / 100;
-      x = `w*${percentage}-text_w/2`;
+      
+      // Apply text alignment
+      switch (textAlign) {
+        case 'left':
+          x = `w*${percentage}`;
+          break;
+        case 'right':
+          x = `w*${percentage}-text_w`;
+          break;
+        case 'center':
+        default:
+          x = `w*${percentage}-text_w/2`;
+          break;
+      }
     } else if (typeof position.x === 'number' || (typeof position.x === 'string' && !isNaN(position.x))) {
-      // Fixed pixel positioning: 1400 -> '1400'
-      x = position.x.toString();
+      // Fixed pixel positioning with alignment
+      const pixelX = parseFloat(position.x);
+      switch (textAlign) {
+        case 'left':
+          x = pixelX.toString();
+          break;
+        case 'right':
+          x = `${pixelX}-text_w`;
+          break;
+        case 'center':
+        default:
+          x = `${pixelX}-text_w/2`;
+          break;
+      }
     } else {
       // Fallback to center
       x = '(w-text_w)/2';
     }
     
-    // Handle Y coordinate
+    // Handle Y coordinate (unchanged)
     if (typeof position.y === 'string' && position.y.includes('%')) {
       // Percentage positioning: '60%' -> h*0.6-text_h/2
       const percentage = parseFloat(position.y.replace('%', '')) / 100;
@@ -355,8 +388,8 @@ function buildTextFilter(overlay, videoHeight) {
   drawtext += `:fontsize=${actualFontSize}`;
   drawtext += `:fontcolor=${overlay.fontColor}`;
   
-  // Position
-  const coordinates = getPositionCoordinates(overlay.position);
+  // Position with text alignment
+  const coordinates = getPositionCoordinates(overlay.position, 1920, videoHeight, overlay.textAlign);
   drawtext += `:x=${coordinates.split(':')[0]}:y=${coordinates.split(':')[1]}`;
   
   // Text outline
@@ -521,6 +554,7 @@ function displayConfig(inputFile, outputFile, validatedOverlays, videoDimensions
       console.log(`    Font Size:   ${firstOverlay.fontSize}px (fixed)`);
     }
     
+    console.log(`    Text Align:  ${firstOverlay.textAlign || 'center'}`);
     console.log(`    Color:       ${firstOverlay.fontColor}`);
     
     // Display position - show original for multi-line, actual for single line
