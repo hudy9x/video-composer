@@ -72,10 +72,7 @@ export interface Config {
   textOverlays: TextOverlay[];
 }
 
-export interface VideoDimensions {
-  width: number;
-  height: number;
-}
+
 
 export interface CommandLineOptions {
   inputFile: string;
