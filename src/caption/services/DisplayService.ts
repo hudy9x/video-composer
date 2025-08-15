@@ -1,7 +1,39 @@
-import { TextOverlay, Config } from '../type';
+import { TextOverlay, Config, EffectType } from '../type';
 import { VideoDimensions } from '../../lib/types';
+import {
+  FADE_IN_TYPE,
+  FADE_OUT_TYPE,
+  SLIDE_UP_TYPE,
+  SLIDE_DOWN_TYPE,
+  SLIDE_LEFT_TYPE,
+  SLIDE_RIGHT_TYPE,
+  ZOOM_IN_TYPE,
+  ZOOM_OUT_TYPE
+} from '../effects';
 
 export class DisplayService {
+  private static getEffectDisplayName(effectType: EffectType): string {
+    switch (effectType) {
+      case FADE_IN_TYPE:
+        return 'Fade In';
+      case FADE_OUT_TYPE:
+        return 'Fade Out';
+      case SLIDE_UP_TYPE:
+        return 'Slide Up';
+      case SLIDE_DOWN_TYPE:
+        return 'Slide Down';
+      case SLIDE_LEFT_TYPE:
+        return 'Slide Left';
+      case SLIDE_RIGHT_TYPE:
+        return 'Slide Right';
+      case ZOOM_IN_TYPE:
+        return 'Zoom In';
+      case ZOOM_OUT_TYPE:
+        return 'Zoom Out';
+      default:
+        return 'Unknown Effect';
+    }
+  }
   static displayConfiguration(
     inputFile: string,
     outputFile: string,
@@ -166,8 +198,8 @@ export class DisplayService {
       }`
     );
     const animationDisplay = firstOverlay.animation.enabled
-      ? firstOverlay.animation.type && firstOverlay.animation.type.name
-        ? firstOverlay.animation.type.name
+      ? firstOverlay.animation.type
+        ? this.getEffectDisplayName(firstOverlay.animation.type)
         : "Unknown Effect"
       : "Disabled";
     console.log(`    Animation:   ${animationDisplay}`);

@@ -4,7 +4,7 @@ import { FontConfig } from '../type';
 
 export abstract class BaseFont {
   protected config: FontConfig;
-  private static fontsDir: string = path.join(__dirname, '../../../fonts');
+  private static fontsDir: string = path.join(__dirname, './sources');
 
   constructor(config: FontConfig) {
     this.config = config;

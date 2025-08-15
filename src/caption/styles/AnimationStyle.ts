@@ -1,5 +1,6 @@
 import { TextStyle } from './BaseStyle';
 import { TextOverlay } from '../type';
+import { EffectFactory } from '../effects';
 
 export class AnimationStyle implements TextStyle {
   apply(filter: string, overlay: TextOverlay, ctx: { videoHeight: number }): string {
@@ -8,9 +9,11 @@ export class AnimationStyle implements TextStyle {
     // Handle timing and effects
     if (overlay.animation && overlay.animation.enabled && overlay.animation.type) {
       try {
+        // Get the effect instance from the factory
+        const effectInstance = EffectFactory.getEffect(overlay.animation.type);
         // Recompute coordinates for the effect
         const coordinates = this.getCoordinatesForEffect(overlay, ctx.videoHeight);
-        const effectFilter = overlay.animation.type.generateFilter(overlay, coordinates, ctx.videoHeight);
+        const effectFilter = effectInstance.generateFilter(overlay, coordinates, ctx.videoHeight);
         result += effectFilter;
       } catch (error) {
         console.warn(`Warning: Error generating effect filter: ${(error as Error).message}. Using default timing.`);

@@ -7,3 +7,4 @@ export { SlideLeftEffect as Effect_SlideLeft, SLIDE_LEFT_TYPE } from './SlideLef
 export { SlideRightEffect as Effect_SlideRight, SLIDE_RIGHT_TYPE } from './SlideRightEffect';
 export { ZoomInEffect as Effect_ZoomIn, ZOOM_IN_TYPE } from './ZoomInEffect';
 export { ZoomOutEffect as Effect_ZoomOut, ZOOM_OUT_TYPE } from './ZoomOutEffect';
+export { EffectFactory } from './EffectFactory';
