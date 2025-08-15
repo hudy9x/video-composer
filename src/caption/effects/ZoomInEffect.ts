@@ -1,11 +1,15 @@
 import { BaseEffect } from './BaseEffect';
 import { TextOverlay } from '../type';
 
+export const ZOOM_IN_TYPE = 'zoom-in' as const;
+
 export class ZoomInEffect extends BaseEffect {
+  static readonly effectName = ZOOM_IN_TYPE;
+  
   constructor() {
     super({
       name: 'Zoom In',
-      type: 'zoom-in',
+      type: ZOOM_IN_TYPE,
       defaultDuration: 0.6,
       ffmpegFilter: () => ''
     });

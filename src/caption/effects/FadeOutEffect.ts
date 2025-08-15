@@ -1,11 +1,15 @@
 import { BaseEffect } from './BaseEffect';
 import { TextOverlay } from '../type';
 
+export const FADE_OUT_TYPE = 'fade-out' as const;
+
 export class FadeOutEffect extends BaseEffect {
+  static readonly effectName = FADE_OUT_TYPE;
+  
   constructor() {
     super({
       name: 'Fade Out',
-      type: 'fade-out',
+      type: FADE_OUT_TYPE,
       defaultDuration: 0.5,
       ffmpegFilter: () => ''
     });

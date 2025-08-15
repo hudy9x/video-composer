@@ -1,11 +1,15 @@
 import { BaseEffect } from './BaseEffect';
 import { TextOverlay } from '../type';
 
+export const SLIDE_UP_TYPE = 'slide-up' as const;
+
 export class SlideUpEffect extends BaseEffect {
+  static readonly effectName = SLIDE_UP_TYPE;
+  
   constructor() {
     super({
       name: 'Slide Up',
-      type: 'slide-up',
+      type: SLIDE_UP_TYPE,
       defaultDuration: 0.8,
       ffmpegFilter: () => ''
     });

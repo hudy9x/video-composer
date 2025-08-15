@@ -3,7 +3,6 @@ import {
   Fonts_DMSerifDisplayItalic,
   Fonts_DMSerifDisplayRegular,
 } from "./fonts";
-import { Effect_FadeIn, Effect_SlideDown } from "./effects";
 
 export const defaultConfig: Config = {
   textOverlays: [
@@ -32,7 +31,7 @@ export const defaultConfig: Config = {
           },
           animation: {
             enabled: true,
-            type: new Effect_FadeIn(),
+            type: "fade-in",
             duration: 1.0,
           },
           startTime: 5,
@@ -64,7 +63,7 @@ export const defaultConfig: Config = {
       },
       animation: {
         enabled: true,
-        type: new Effect_FadeIn(),
+        type: "fade-in",
         duration: 0.5,
       },
     },
@@ -95,7 +94,7 @@ export const defaultConfig: Config = {
       },
       animation: {
         enabled: true,
-        type: new Effect_SlideDown(),
+        type: "slide-down",
         duration: 0.8,
       },
     },

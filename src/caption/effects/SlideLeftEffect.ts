@@ -1,11 +1,15 @@
 import { BaseEffect } from './BaseEffect';
 import { TextOverlay } from '../type';
 
+export const SLIDE_LEFT_TYPE = 'slide-left' as const;
+
 export class SlideLeftEffect extends BaseEffect {
+  static readonly effectName = SLIDE_LEFT_TYPE;
+  
   constructor() {
     super({
       name: 'Slide Left',
-      type: 'slide-left',
+      type: SLIDE_LEFT_TYPE,
       defaultDuration: 0.8,
       ffmpegFilter: () => ''
     });

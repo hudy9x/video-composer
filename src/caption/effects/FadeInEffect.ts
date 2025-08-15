@@ -1,11 +1,15 @@
 import { BaseEffect } from './BaseEffect';
 import { TextOverlay } from '../type';
 
+export const FADE_IN_TYPE = 'fade-in' as const;
+
 export class FadeInEffect extends BaseEffect {
+  static readonly effectName = FADE_IN_TYPE;
+  
   constructor() {
     super({
       name: 'Fade In',
-      type: 'fade-in',
+      type: FADE_IN_TYPE,
       defaultDuration: 0.5,
       ffmpegFilter: () => '' // Not used in this implementation
     });

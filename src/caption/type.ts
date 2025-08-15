@@ -1,3 +1,24 @@
+import {
+  FADE_IN_TYPE,
+  FADE_OUT_TYPE,
+  SLIDE_UP_TYPE,
+  SLIDE_DOWN_TYPE,
+  SLIDE_LEFT_TYPE,
+  SLIDE_RIGHT_TYPE,
+  ZOOM_IN_TYPE,
+  ZOOM_OUT_TYPE
+} from './effects';
+
+export type EffectType = 
+  | typeof FADE_IN_TYPE
+  | typeof FADE_OUT_TYPE
+  | typeof SLIDE_UP_TYPE
+  | typeof SLIDE_DOWN_TYPE
+  | typeof SLIDE_LEFT_TYPE
+  | typeof SLIDE_RIGHT_TYPE
+  | typeof ZOOM_IN_TYPE
+  | typeof ZOOM_OUT_TYPE;
+
 export interface Position {
   x: string | number;
   y: string | number;
@@ -24,7 +45,7 @@ export interface TextBox {
 
 export interface Animation {
   enabled: boolean;
-  type: any; // Effect class instance (e.g., new FadeInEffect())
+  type: EffectType; // Effect type enum (e.g., EffectType.FADE_IN)
   duration: number;
   delay?: number;
 }
