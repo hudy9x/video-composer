@@ -11,93 +11,18 @@ const CONFIG = {
   // Array of text overlays - each with its own timing and styling
   textOverlays: [
     {
-      // First line: "ChatGPT" - positioned above center
-      text: 'ChatGPT',
+      // Multi-line text example - use \n for line breaks
+      text: 'ChatGPT\nprompt for\nimages',
       startTime: 2,
       endTime: 7,
       
-      fontSize: 120,
-      fontFamily: 'Cookie-Regular.ttf',
+      fontSize: 6,  // 6% of video height - will scale automatically
+      fontFamily: 'DMSerifDisplay-Italic.ttf',
       fontColor: 'white',
       
-      // Position above center - 40% vertically (higher than center)
-      position: { x: '50%', y: '40%' },
-      
-      textOutline: {
-        enabled: true,
-        color: 'black',
-        width: 3
-      },
-      
-      textShadow: {
-        enabled: true,
-        color: 'black',
-        offsetX: 2,
-        offsetY: 2
-      },
-      
-      textBox: {
-        enabled: false,
-        color: 'black@0.5',
-        padding: 10
-      },
-      
-      animation: {
-        enabled: true,
-        type: 'fade',
-        duration: 0.5
-      }
-    },
-    {
-      // Second line: "prompt for" - positioned at center
-      text: 'prompt for',
-      startTime: 3,
-      endTime: 7,
-      
-      fontSize: 100,
-      fontFamily: 'Cookie-Regular.ttf',
-      fontColor: 'white',
-      
-      // Position at exact center
+      // Position for the entire text block - will be auto-centered
       position: { x: '50%', y: '50%' },
-      
-      textOutline: {
-        enabled: true,
-        color: 'black',
-        width: 3
-      },
-      
-      textShadow: {
-        enabled: true,
-        color: 'black',
-        offsetX: 2,
-        offsetY: 2
-      },
-      
-      textBox: {
-        enabled: false,
-        color: 'black@0.5',
-        padding: 10
-      },
-      
-      animation: {
-        enabled: true,
-        type: 'fade',
-        duration: 0.5
-      }
-    },
-    {
-      // Third line: "images" - positioned below center
-      text: 'images',
-      startTime: 4,
-      endTime: 7,
-      
-      fontSize: 110,
-      fontFamily: 'Cookie-Regular.ttf',
-      fontColor: 'white',
-      
-      // Position below center - 60% vertically (lower than center)
-      position: { x: '50%', y: '60%' },
+      textAlign: 'left',
       
       textOutline: {
         enabled: true,
@@ -148,6 +73,12 @@ Configuration:
   - Each text has its own styling, position, and effects
   - startTime and endTime control when each text appears/disappears
 
+Font Size System:
+  - fontSize 1-20 (including decimals): Percentage of video height (responsive)
+    Examples: fontSize: 2.5 = 2.5% of video height, fontSize: 8 = 8% of video height
+  - fontSize > 20: Fixed pixel size (backward compatibility)
+    Examples: fontSize: 120 = 120 pixels exactly
+
 Font Setup:
   Place your font files (.ttf, .otf) in a './fonts' folder
   Update fontFamily for each text overlay with your font filename
@@ -184,7 +115,134 @@ function parseArguments() {
   return { inputFile, outputFile };
 }
 
-function validateConfig() {
+function getVideoDimensions(inputFile) {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn('ffmpeg', [
+      '-i', inputFile,
+      '-hide_banner',
+      '-f', 'null',
+      '-'
+    ]);
+
+    let output = '';
+    
+    // FFmpeg outputs video info to stderr
+    ffmpeg.stderr.on('data', (data) => {
+      output += data.toString();
+    });
+
+    ffmpeg.on('close', (code) => {
+      // FFmpeg exits with code 0 or sometimes 1 when using -f null, both are OK
+      if (code === 0 || code === 1) {
+        try {
+          // Parse video dimensions from FFmpeg output
+          // Look for patterns like "1920x1080" or "Video: h264, yuv420p, 1920x1080"
+          const dimensionMatch = output.match(/(\d{3,5})x(\d{3,5})/);
+          
+          if (dimensionMatch) {
+            const width = parseInt(dimensionMatch[1]);
+            const height = parseInt(dimensionMatch[2]);
+            
+            resolve({
+              width: width,
+              height: height
+            });
+          } else {
+            reject(new Error('Could not parse video dimensions from FFmpeg output'));
+          }
+        } catch (error) {
+          reject(new Error('Failed to parse video information'));
+        }
+      } else {
+        reject(new Error(`FFmpeg exited with code ${code}`));
+      }
+    });
+
+    ffmpeg.on('error', (err) => {
+      if (err.code === 'ENOENT') {
+        reject(new Error('FFmpeg not found. Please install FFmpeg and make sure it\'s in your PATH.'));
+      } else {
+        reject(err);
+      }
+    });
+  });
+}
+
+function calculateFontSize(fontSize, videoHeight, silent = false) {
+  // Font size system:
+  // 1-20 (including decimals): Percentage of video height
+  // > 20: Fixed pixel size
+  
+  if (fontSize <= 20) {
+    // Treat as percentage of video height
+    const calculatedSize = Math.round((fontSize / 100) * videoHeight);
+    if (!silent) {
+      console.log(`    Font size: ${fontSize}% of video height = ${calculatedSize}px`);
+    }
+    return calculatedSize;
+  } else {
+    // Treat as fixed pixel size
+    if (!silent) {
+      console.log(`    Font size: ${fontSize}px (fixed)`);
+    }
+    return fontSize;
+  }
+}
+
+function parseMultiLineText(overlay, videoHeight) {
+  const lines = overlay.text.split('\n');
+  
+  // If single line, return as-is
+  if (lines.length === 1) {
+    return [overlay];
+  }
+  
+  // Calculate line spacing and total height
+  const fontSize = calculateFontSize(overlay.fontSize, videoHeight, true);
+  const lineSpacing = 1.2; // Standard line spacing multiplier
+  const lineHeight = fontSize * lineSpacing;
+  const totalHeight = lineHeight * lines.length;
+  
+  // Calculate starting Y position to center the entire text block
+  const startingY = calculateStartingYForBlock(overlay.position.y, totalHeight, videoHeight);
+  
+  // Create separate overlay for each line
+  return lines.map((line, index) => ({
+    ...overlay,
+    text: line.trim(), // Remove any extra whitespace
+    position: {
+      x: overlay.position.x,
+      y: startingY + (index * lineHeight)
+    },
+    // Add metadata for display purposes
+    _isMultiLine: true,
+    _originalText: overlay.text,
+    _lineIndex: index,
+    _totalLines: lines.length
+  }));
+}
+
+function calculateStartingYForBlock(originalY, totalHeight, videoHeight) {
+  if (typeof originalY === 'string' && originalY.includes('%')) {
+    // Handle percentage positioning
+    const percentage = parseFloat(originalY.replace('%', '')) / 100;
+    const centerY = videoHeight * percentage;
+    const startY = centerY - (totalHeight / 2);
+    return startY;
+  } else if (typeof originalY === 'number' || (typeof originalY === 'string' && !isNaN(originalY))) {
+    // Handle fixed pixel positioning
+    const centerY = parseFloat(originalY);
+    const startY = centerY - (totalHeight / 2);
+    return startY;
+  } else {
+    // Fallback to center
+    const centerY = videoHeight / 2;
+    const startY = centerY - (totalHeight / 2);
+    return startY;
+  }
+}
+
+function validateConfig(videoHeight) {
   // Check if fonts folder exists
   const fontsDir = path.join(__dirname, '../fonts');
   if (!fs.existsSync(fontsDir)) {
@@ -215,10 +273,21 @@ function validateConfig() {
       process.exit(1);
     }
     
-    validatedOverlays.push({
+    // Validate font size
+    if (overlay.fontSize <= 0) {
+      console.error(`Error: Text overlay ${index + 1} has invalid fontSize. Must be greater than 0`);
+      process.exit(1);
+    }
+    
+    // Add font path to overlay
+    const overlayWithFont = {
       ...overlay,
       fontPath: fontPath
-    });
+    };
+    
+    // Parse multi-line text and expand into separate overlays
+    const expandedOverlays = parseMultiLineText(overlayWithFont, videoHeight);
+    validatedOverlays.push(...expandedOverlays);
   });
 
   return validatedOverlays;
@@ -273,14 +342,17 @@ function getPositionCoordinates(position, videoWidth = 1920, videoHeight = 1080)
   return positions[position] || positions['center'];
 }
 
-function buildTextFilter(overlay) {
+function buildTextFilter(overlay, videoHeight) {
   // Escape text for FFmpeg
   const escapedText = overlay.text.replace(/'/g, "\\'").replace(/:/g, "\\:");
+  
+  // Calculate responsive font size
+  const actualFontSize = calculateFontSize(overlay.fontSize, videoHeight);
   
   // Build drawtext filter
   let drawtext = `drawtext=text='${escapedText}'`;
   drawtext += `:fontfile='${overlay.fontPath.replace(/\\/g, '/')}'`;
-  drawtext += `:fontsize=${overlay.fontSize}`;
+  drawtext += `:fontsize=${actualFontSize}`;
   drawtext += `:fontcolor=${overlay.fontColor}`;
   
   // Position
@@ -332,11 +404,11 @@ function buildTextFilter(overlay) {
   return drawtext;
 }
 
-function buildFFmpegCommand(inputFile, outputFile, validatedOverlays) {
+function buildFFmpegCommand(inputFile, outputFile, validatedOverlays, videoHeight) {
   const args = ['-i', inputFile];
   
   // Build text filters for all overlays
-  const textFilters = validatedOverlays.map(overlay => buildTextFilter(overlay));
+  const textFilters = validatedOverlays.map(overlay => buildTextFilter(overlay, videoHeight));
   
   // Combine all filters
   if (textFilters.length > 0) {
@@ -390,31 +462,90 @@ function runFFmpeg(args) {
   });
 }
 
-function displayConfig(inputFile, outputFile, validatedOverlays) {
+function displayConfig(inputFile, outputFile, validatedOverlays, videoDimensions) {
   console.log('Multi-Text Overlay Configuration:');
+  console.log(`  Video resolution: ${videoDimensions.width}×${videoDimensions.height}`);
   console.log(`  Total overlays: ${validatedOverlays.length}`);
   console.log('');
   
-  validatedOverlays.forEach((overlay, index) => {
-    console.log(`  Text ${index + 1}:`);
-    console.log(`    Text:        "${overlay.text}"`);
-    console.log(`    Timing:      ${overlay.startTime}s - ${overlay.endTime}s`);
-    console.log(`    Font:        ${overlay.fontFamily} (${overlay.fontSize}px)`);
-    console.log(`    Color:       ${overlay.fontColor}`);
-    
-    // Display position with better formatting
-    let positionDisplay;
-    if (typeof overlay.position === 'object') {
-      positionDisplay = `x: ${overlay.position.x}, y: ${overlay.position.y}`;
+  // Group overlays by their original text for better display
+  const groupedOverlays = {};
+  let overlayCounter = 1;
+  
+  validatedOverlays.forEach((overlay) => {
+    if (overlay._isMultiLine) {
+      // Multi-line text
+      const originalText = overlay._originalText;
+      if (!groupedOverlays[originalText]) {
+        groupedOverlays[originalText] = {
+          counter: overlayCounter++,
+          overlays: []
+        };
+      }
+      groupedOverlays[originalText].overlays.push(overlay);
     } else {
-      positionDisplay = overlay.position;
+      // Single line text
+      groupedOverlays[overlay.text] = {
+        counter: overlayCounter++,
+        overlays: [overlay]
+      };
+    }
+  });
+  
+  Object.entries(groupedOverlays).forEach(([originalText, group]) => {
+    const firstOverlay = group.overlays[0];
+    const isMultiLine = firstOverlay._isMultiLine;
+    
+    console.log(`  Text ${group.counter}:`);
+    
+    if (isMultiLine) {
+      console.log(`    Text:        "${originalText}" (${group.overlays.length} lines)`);
+      group.overlays.forEach((overlay, index) => {
+        console.log(`      Line ${index + 1}:   "${overlay.text}"`);
+      });
+    } else {
+      console.log(`    Text:        "${originalText}"`);
+    }
+    
+    console.log(`    Timing:      ${firstOverlay.startTime}s - ${firstOverlay.endTime}s`);
+    console.log(`    Font:        ${firstOverlay.fontFamily}`);
+    
+    // Display font size with calculation preview
+    const actualFontSize = firstOverlay.fontSize <= 20 
+      ? Math.round((firstOverlay.fontSize / 100) * videoDimensions.height)
+      : firstOverlay.fontSize;
+    
+    if (firstOverlay.fontSize <= 20) {
+      console.log(`    Font Size:   ${firstOverlay.fontSize}% of video height → ${actualFontSize}px`);
+    } else {
+      console.log(`    Font Size:   ${firstOverlay.fontSize}px (fixed)`);
+    }
+    
+    console.log(`    Color:       ${firstOverlay.fontColor}`);
+    
+    // Display position - show original for multi-line, actual for single line
+    let positionDisplay;
+    if (isMultiLine) {
+      // Show the original intended position
+      const originalPosition = CONFIG.textOverlays.find(o => o.text === originalText)?.position;
+      if (typeof originalPosition === 'object') {
+        positionDisplay = `x: ${originalPosition.x}, y: ${originalPosition.y} (auto-centered block)`;
+      } else {
+        positionDisplay = `${originalPosition} (auto-centered block)`;
+      }
+    } else {
+      if (typeof firstOverlay.position === 'object') {
+        positionDisplay = `x: ${firstOverlay.position.x}, y: ${firstOverlay.position.y}`;
+      } else {
+        positionDisplay = firstOverlay.position;
+      }
     }
     console.log(`    Position:    ${positionDisplay}`);
     
-    console.log(`    Outline:     ${overlay.textOutline.enabled ? `${overlay.textOutline.color} (${overlay.textOutline.width}px)` : 'Disabled'}`);
-    console.log(`    Shadow:      ${overlay.textShadow.enabled ? `${overlay.textShadow.color} (${overlay.textShadow.offsetX}, ${overlay.textShadow.offsetY})` : 'Disabled'}`);
-    console.log(`    Background:  ${overlay.textBox.enabled ? overlay.textBox.color : 'Disabled'}`);
-    console.log(`    Animation:   ${overlay.animation.enabled ? overlay.animation.type : 'Disabled'}`);
+    console.log(`    Outline:     ${firstOverlay.textOutline.enabled ? `${firstOverlay.textOutline.color} (${firstOverlay.textOutline.width}px)` : 'Disabled'}`);
+    console.log(`    Shadow:      ${firstOverlay.textShadow.enabled ? `${firstOverlay.textShadow.color} (${firstOverlay.textShadow.offsetX}, ${firstOverlay.textShadow.offsetY})` : 'Disabled'}`);
+    console.log(`    Background:  ${firstOverlay.textBox.enabled ? firstOverlay.textBox.color : 'Disabled'}`);
+    console.log(`    Animation:   ${firstOverlay.animation.enabled ? firstOverlay.animation.type : 'Disabled'}`);
     console.log('');
   });
   
@@ -426,16 +557,23 @@ function displayConfig(inputFile, outputFile, validatedOverlays) {
 async function main() {
   try {
     const { inputFile, outputFile } = parseArguments();
-    const validatedOverlays = validateConfig();
+    
+    // Get video dimensions for responsive font sizing
+    console.log('Analyzing video dimensions...');
+    const videoDimensions = await getVideoDimensions(inputFile);
+    console.log('');
+    
+    // Validate config with video height for multi-line processing
+    const validatedOverlays = validateConfig(videoDimensions.height);
     
     if (validatedOverlays.length === 0) {
       console.error('Error: No text overlays configured in CONFIG.textOverlays');
       process.exit(1);
     }
     
-    displayConfig(inputFile, outputFile, validatedOverlays);
+    displayConfig(inputFile, outputFile, validatedOverlays, videoDimensions);
     
-    const ffmpegArgs = buildFFmpegCommand(inputFile, outputFile, validatedOverlays);
+    const ffmpegArgs = buildFFmpegCommand(inputFile, outputFile, validatedOverlays, videoDimensions.height);
     
     await runFFmpeg(ffmpegArgs);
     
