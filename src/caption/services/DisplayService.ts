@@ -10,6 +10,7 @@ import {
   ZOOM_IN_TYPE,
   ZOOM_OUT_TYPE
 } from '../effects';
+import { FontFactory } from '../fonts';
 
 export class DisplayService {
   private static getEffectDisplayName(effectType: EffectType): string {
@@ -137,7 +138,7 @@ export class DisplayService {
     );
     const fontDisplay = firstOverlay.fontInstance
       ? firstOverlay.fontInstance.name
-      : firstOverlay.fontFamily;
+      : FontFactory.getFontDisplayName(firstOverlay.fontFamily);
     console.log(`    Font:        ${fontDisplay}`);
 
     // Display font size with calculation preview

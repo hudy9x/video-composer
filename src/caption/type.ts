@@ -8,6 +8,15 @@ import {
   ZOOM_IN_TYPE,
   ZOOM_OUT_TYPE
 } from './effects';
+import {
+  DM_SERIF_DISPLAY_ITALIC_TYPE,
+  DM_SERIF_DISPLAY_REGULAR_TYPE,
+  ARCHIVO_BLACK_TYPE,
+  COOKIE_TYPE,
+  FJALLA_ONE_TYPE,
+  SOURCE_SERIF_TYPE,
+  SOURCE_SERIF_ITALIC_TYPE
+} from './fonts';
 
 export type EffectType = 
   | typeof FADE_IN_TYPE
@@ -18,6 +27,15 @@ export type EffectType =
   | typeof SLIDE_RIGHT_TYPE
   | typeof ZOOM_IN_TYPE
   | typeof ZOOM_OUT_TYPE;
+
+export type FontType = 
+  | typeof DM_SERIF_DISPLAY_ITALIC_TYPE
+  | typeof DM_SERIF_DISPLAY_REGULAR_TYPE
+  | typeof ARCHIVO_BLACK_TYPE
+  | typeof COOKIE_TYPE
+  | typeof FJALLA_ONE_TYPE
+  | typeof SOURCE_SERIF_TYPE
+  | typeof SOURCE_SERIF_ITALIC_TYPE;
 
 export interface Position {
   x: string | number;
@@ -70,7 +88,7 @@ export interface TextOverlay {
   startTime: number;
   endTime: number;
   fontSize: number;
-  fontFamily: string | any; // Can be string or font class instance
+  fontFamily: FontType; // Font type string identifier
   fontColor: string;
   position: Position;
   textAlign?: 'left' | 'center' | 'right';

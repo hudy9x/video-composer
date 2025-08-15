@@ -1,6 +1,9 @@
 import { BaseFont } from './BaseFont';
 
+export const SOURCE_SERIF_ITALIC_TYPE = 'source-serif-italic' as const;
+
 export class SourceSerifItalic extends BaseFont {
+  static readonly fontType = SOURCE_SERIF_ITALIC_TYPE;
   constructor() {
     super({
       name: 'Source Serif Italic',

@@ -1,7 +1,7 @@
 import { Config } from "./type";
 import {
-  Fonts_DMSerifDisplayItalic,
-  Fonts_DMSerifDisplayRegular,
+  DM_SERIF_DISPLAY_ITALIC_TYPE,
+  DM_SERIF_DISPLAY_REGULAR_TYPE,
 } from "./fonts";
 
 export const defaultConfig: Config = {
@@ -41,7 +41,7 @@ export const defaultConfig: Config = {
       startTime: 2,
       endTime: 7,
       fontSize: 6,
-      fontFamily: new Fonts_DMSerifDisplayItalic(),
+      fontFamily: DM_SERIF_DISPLAY_ITALIC_TYPE,
       fontColor: "white",
       position: { x: "50%", y: "50%" },
       textAlign: "center",
@@ -72,7 +72,7 @@ export const defaultConfig: Config = {
       startTime: 10,
       endTime: 14,
       fontSize: 5,
-      fontFamily: new Fonts_DMSerifDisplayRegular(),
+      fontFamily: DM_SERIF_DISPLAY_REGULAR_TYPE,
       fontColor: "white",
       position: { x: "50%", y: "50%" },
       textAlign: "center",

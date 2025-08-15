@@ -1,4 +1,5 @@
 import { Config, TextOverlay } from '../type';
+import { FontFactory } from '../fonts';
 import { BaseFont } from '../fonts';
 
 export class ValidationService {
@@ -22,20 +23,18 @@ export class ValidationService {
   }
 
   private static validateOverlay(overlay: TextOverlay, index: number): void {
-    // Validate font
-    if (typeof overlay.fontFamily !== "string") {
-      // Font class instance - use the new validation system
-      try {
-        overlay.fontFamily.validate();
-      } catch (error) {
-        console.error(
-          `Error: ${(error as Error).message} (text overlay ${index + 1})`
-        );
-        console.error(`Available fonts in ./fonts:`);
-        const fonts = BaseFont.getAvailableFontFiles();
-        fonts.forEach((font) => console.error(`  - ${font}`));
-        process.exit(1);
-      }
+    // Validate font using FontFactory
+    try {
+      const fontInstance = FontFactory.getFont(overlay.fontFamily);
+      fontInstance.validate();
+    } catch (error) {
+      console.error(
+        `Error: ${(error as Error).message} (text overlay ${index + 1})`
+      );
+      console.error(`Available fonts in ./fonts:`);
+      const fonts = BaseFont.getAvailableFontFiles();
+      fonts.forEach((font) => console.error(`  - ${font}`));
+      process.exit(1);
     }
 
     // Validate timing

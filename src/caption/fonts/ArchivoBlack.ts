@@ -1,6 +1,9 @@
 import { BaseFont } from './BaseFont';
 
+export const ARCHIVO_BLACK_TYPE = 'archivo-black' as const;
+
 export class ArchivoBlack extends BaseFont {
+  static readonly fontType = ARCHIVO_BLACK_TYPE;
   constructor() {
     super({
       name: 'Archivo Black',

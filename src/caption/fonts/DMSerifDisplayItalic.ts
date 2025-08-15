@@ -1,6 +1,9 @@
 import { BaseFont } from './BaseFont';
 
+export const DM_SERIF_DISPLAY_ITALIC_TYPE = 'dm-serif-display-italic' as const;
+
 export class DMSerifDisplayItalic extends BaseFont {
+  static readonly fontType = DM_SERIF_DISPLAY_ITALIC_TYPE;
   constructor() {
     super({
       name: 'DM Serif Display Italic',

@@ -1,6 +1,9 @@
 import { BaseFont } from './BaseFont';
 
+export const SOURCE_SERIF_TYPE = 'source-serif' as const;
+
 export class SourceSerif extends BaseFont {
+  static readonly fontType = SOURCE_SERIF_TYPE;
   constructor() {
     super({
       name: 'Source Serif',

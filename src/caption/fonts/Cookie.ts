@@ -1,6 +1,9 @@
 import { BaseFont } from './BaseFont';
 
+export const COOKIE_TYPE = 'cookie' as const;
+
 export class Cookie extends BaseFont {
+  static readonly fontType = COOKIE_TYPE;
   constructor() {
     super({
       name: 'Cookie',
