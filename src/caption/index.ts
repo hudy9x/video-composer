@@ -4,6 +4,8 @@ import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Position, TextOutline, TextShadow, TextBox, Animation, TextElement, TextOverlay, Config, VideoDimensions } from './type';
+import { BaseFont, Fonts_DMSerifDisplayItalic, Fonts_DMSerifDisplayRegular, Fonts_ArchivoBlack, Fonts_Cookie, Fonts_FjallaOne, Fonts_SourceSerif, Fonts_SourceSerifItalic } from './fonts';
+import { Effect_FadeIn, Effect_FadeOut, Effect_SlideUp, Effect_SlideDown, Effect_SlideLeft, Effect_SlideRight, Effect_ZoomIn, Effect_ZoomOut } from './effects';
 
 // ========================================
 // CONFIGURATION - EDIT THESE SETTINGS
@@ -35,7 +37,7 @@ const CONFIG: Config = {
           fontColor: 'gold',              // Different color
           textOutline: { enabled: true, color: 'red', width: 4 }, // Red outline
           textShadow: { enabled: true, color: 'purple', offsetX: 3, offsetY: 3 }, // Purple shadow
-          animation: { enabled: true, type: 'fade', duration: 1.0 }, // Different animation
+          animation: { enabled: true, type: new Effect_FadeIn(), duration: 1.0 }, // Different animation
           
           // Different timing - appears after other text
           startTime: 5,  // Starts 3 seconds after "ChatGPT prompt for"
@@ -48,7 +50,7 @@ const CONFIG: Config = {
       endTime: 7,
       
       fontSize: 6,  // 6% of video height - will scale automatically
-      fontFamily: 'DMSerifDisplay-Italic.ttf',
+      fontFamily: new Fonts_DMSerifDisplayItalic(),
       fontColor: 'white',
       
       // Position for the entire text block - will be auto-positioned
@@ -78,7 +80,7 @@ const CONFIG: Config = {
       
       animation: {
         enabled: true,
-        type: 'fade',
+        type: new Effect_FadeIn(),
         duration: 0.5
       }
     },
@@ -91,8 +93,8 @@ const CONFIG: Config = {
       startTime: 10,
       endTime: 14,
       
-      fontSize: 5,  // 6% of video height - will scale automatically
-      fontFamily: 'DMSerifDisplay-Italic.ttf',
+      fontSize: 5,  // 5% of video height - will scale automatically
+      fontFamily: new Fonts_DMSerifDisplayRegular(),
       fontColor: 'white',
       
       // Position for the entire text block - will be auto-positioned
@@ -122,8 +124,8 @@ const CONFIG: Config = {
       
       animation: {
         enabled: true,
-        type: 'fade',
-        duration: 0.5
+        type: new Effect_SlideDown(),
+        duration: 0.8
       }
     }
   ]
@@ -422,11 +424,13 @@ function calculateStartingYForBlock(originalY: string | number, totalHeight: num
 }
 
 function validateConfig(videoHeight: number): TextOverlay[] {
-  // Check if fonts folder exists
-  const fontsDir = path.join(__dirname, '../../fonts');
-  if (!fs.existsSync(fontsDir)) {
+  // Validate fonts directory exists using BaseFont
+  try {
+    BaseFont.validateFontsDirectory();
+  } catch (error) {
     console.error('Error: ./fonts folder does not exist');
     console.error('Please create a ./fonts folder and place your font files there');
+    console.error(`Expected path: ${BaseFont.getFontsDirectory()}`);
     process.exit(1);
   }
 
@@ -434,16 +438,36 @@ function validateConfig(videoHeight: number): TextOverlay[] {
   const validatedOverlays: TextOverlay[] = [];
   
   CONFIG.textOverlays.forEach((overlay, index) => {
-    // Check if specified font file exists
-    const fontPath = path.join(fontsDir, overlay.fontFamily);
-    if (!fs.existsSync(fontPath)) {
-      console.error(`Error: Font file "${overlay.fontFamily}" for text overlay ${index + 1} not found in ./fonts folder`);
-      console.error(`Available fonts in ./fonts:`);
-      const fonts = fs.readdirSync(fontsDir).filter(f => 
-        f.endsWith('.ttf') || f.endsWith('.otf') || f.endsWith('.TTF') || f.endsWith('.OTF')
-      );
-      fonts.forEach(font => console.error(`  - ${font}`));
-      process.exit(1);
+    // Handle font class instance or string
+    let fontPath: string;
+    let fontInstance: any = null;
+    
+    if (typeof overlay.fontFamily === 'string') {
+      // Legacy string-based font handling
+      fontPath = path.join(BaseFont.getFontsDirectory(), overlay.fontFamily);
+      
+      // Check if legacy font file exists
+      if (!fs.existsSync(fontPath)) {
+        console.error(`Error: Font file "${overlay.fontFamily}" for text overlay ${index + 1} not found in ./fonts folder`);
+        console.error(`Expected path: ${fontPath}`);
+        console.error(`Available fonts in ./fonts:`);
+        const fonts = BaseFont.getAvailableFontFiles();
+        fonts.forEach(font => console.error(`  - ${font}`));
+        process.exit(1);
+      }
+    } else {
+      // Font class instance - use the new validation system
+      fontInstance = overlay.fontFamily;
+      try {
+        fontInstance.validate();
+        fontPath = fontInstance.getFullPath();
+      } catch (error) {
+        console.error(`Error: ${(error as Error).message} (text overlay ${index + 1})`);
+        console.error(`Available fonts in ./fonts:`);
+        const fonts = BaseFont.getAvailableFontFiles();
+        fonts.forEach(font => console.error(`  - ${font}`));
+        process.exit(1);
+      }
     }
     
     // Validate timing
@@ -458,10 +482,11 @@ function validateConfig(videoHeight: number): TextOverlay[] {
       process.exit(1);
     }
     
-    // Add font path to overlay
+    // Add font path and instance to overlay
     const overlayWithFont = {
       ...overlay,
-      fontPath: fontPath
+      fontPath: fontPath,
+      fontInstance: fontInstance
     };
     
     // Parse multi-line text and expand into separate overlays
@@ -578,28 +603,15 @@ function buildTextFilter(overlay: TextOverlay, videoHeight: number): string {
     drawtext += `:box=1:boxcolor=${overlay.textBox.color}:boxborderw=${overlay.textBox.padding}`;
   }
   
-  // Timing - always apply start and end time
-  if (overlay.animation && overlay.animation.enabled && overlay.animation.type === 'fade') {
-    // Fade animation with timing
-    const fadeInDuration = overlay.animation.duration;
-    const fadeOutDuration = overlay.animation.duration;
-    const visibleDuration = overlay.endTime - overlay.startTime - fadeInDuration - fadeOutDuration;
-    
-    if (visibleDuration > 0) {
-      const fadeInEnd = overlay.startTime + fadeInDuration;
-      const fadeOutStart = overlay.endTime - fadeOutDuration;
-      
-      drawtext += `:enable='between(t,${overlay.startTime},${overlay.endTime})'`;
-      drawtext += `:alpha='if(lt(t,${fadeInEnd}),(t-${overlay.startTime})/${fadeInDuration},if(lt(t,${fadeOutStart}),1,(${overlay.endTime}-t)/${fadeOutDuration}))'`;
-    } else {
-      // If fade duration is too long, just show/hide at start/end times
+  // Timing and effects - use the new effect system
+  if (overlay.animation && overlay.animation.enabled && overlay.animation.type) {
+    try {
+      const effectFilter = overlay.animation.type.generateFilter(overlay, coordinates, videoHeight);
+      drawtext += effectFilter;
+    } catch (error) {
+      console.warn(`Warning: Error generating effect filter: ${(error as Error).message}. Using default timing.`);
       drawtext += `:enable='between(t,${overlay.startTime},${overlay.endTime})'`;
     }
-  } else if (overlay.animation && overlay.animation.enabled && overlay.animation.type === 'slide-in') {
-    // Slide-in animation
-    const slideInEnd = overlay.startTime + overlay.animation.duration;
-    drawtext += `:enable='between(t,${overlay.startTime},${overlay.endTime})'`;
-    drawtext += `:x='if(lt(t,${slideInEnd}),w-(t-${overlay.startTime})/${overlay.animation.duration}*w,${coordinates.split(':')[0]})'`;
   } else {
     // No animation, just show between start and end time
     drawtext += `:enable='between(t,${overlay.startTime},${overlay.endTime})'`;
@@ -721,7 +733,8 @@ function displayConfig(inputFile: string, outputFile: string, validatedOverlays:
     }
     
     console.log(`    Timing:      ${firstOverlay.startTime}s - ${firstOverlay.endTime}s`);
-    console.log(`    Font:        ${firstOverlay.fontFamily}`);
+    const fontDisplay = firstOverlay.fontInstance ? firstOverlay.fontInstance.name : firstOverlay.fontFamily;
+    console.log(`    Font:        ${fontDisplay}`);
     
     // Display font size with calculation preview
     const actualFontSize = firstOverlay.fontSize <= 20 
@@ -759,7 +772,10 @@ function displayConfig(inputFile: string, outputFile: string, validatedOverlays:
     console.log(`    Outline:     ${firstOverlay.textOutline.enabled ? `${firstOverlay.textOutline.color} (${firstOverlay.textOutline.width}px)` : 'Disabled'}`);
     console.log(`    Shadow:      ${firstOverlay.textShadow.enabled ? `${firstOverlay.textShadow.color} (${firstOverlay.textShadow.offsetX}, ${firstOverlay.textShadow.offsetY})` : 'Disabled'}`);
     console.log(`    Background:  ${firstOverlay.textBox.enabled ? firstOverlay.textBox.color : 'Disabled'}`);
-    console.log(`    Animation:   ${firstOverlay.animation.enabled ? firstOverlay.animation.type : 'Disabled'}`);
+    const animationDisplay = firstOverlay.animation.enabled 
+      ? (firstOverlay.animation.type && firstOverlay.animation.type.name ? firstOverlay.animation.type.name : 'Unknown Effect')
+      : 'Disabled';
+    console.log(`    Animation:   ${animationDisplay}`);
     console.log('');
   });
   

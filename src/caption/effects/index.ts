@@ -1,0 +1,10 @@
+export { BaseEffect } from './BaseEffect';
+export { FadeInEffect as Effect_FadeIn } from './FadeInEffect';
+export { FadeOutEffect as Effect_FadeOut } from './FadeOutEffect';
+export { SlideUpEffect as Effect_SlideUp } from './SlideUpEffect';
+export { SlideDownEffect as Effect_SlideDown } from './SlideDownEffect';
+export { SlideLeftEffect as Effect_SlideLeft } from './SlideLeftEffect';
+export { SlideRightEffect as Effect_SlideRight } from './SlideRightEffect';
+export { ZoomInEffect as Effect_ZoomIn } from './ZoomInEffect';
+export { ZoomOutEffect as Effect_ZoomOut } from './ZoomOutEffect';
+export { EffectsManager } from './EffectsManager';

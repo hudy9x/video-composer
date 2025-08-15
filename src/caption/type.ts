@@ -24,8 +24,9 @@ export interface TextBox {
 
 export interface Animation {
   enabled: boolean;
-  type: 'fade' | 'slide-in';
+  type: any; // Effect class instance (e.g., new FadeInEffect())
   duration: number;
+  delay?: number;
 }
 
 export interface TextElement {
@@ -48,7 +49,7 @@ export interface TextOverlay {
   startTime: number;
   endTime: number;
   fontSize: number;
-  fontFamily: string;
+  fontFamily: string | any; // Can be string or font class instance
   fontColor: string;
   position: Position;
   textAlign?: 'left' | 'center' | 'right';
@@ -57,6 +58,7 @@ export interface TextOverlay {
   textBox: TextBox;
   animation: Animation;
   fontPath?: string;
+  fontInstance?: any; // Will hold the font class instance
   _isMultiLine?: boolean;
   _originalText?: string;
   _lineIndex?: number;
@@ -73,4 +75,25 @@ export interface Config {
 export interface VideoDimensions {
   width: number;
   height: number;
+}
+
+export interface CommandLineOptions {
+  inputFile: string;
+  outputFile?: string;
+  configFile?: string;
+  help?: boolean;
+  version?: boolean;
+}
+
+export interface FontConfig {
+  name: string;
+  path: string;
+  family: string;
+}
+
+export interface EffectConfig {
+  name: string;
+  type: Animation['type'];
+  defaultDuration: number;
+  ffmpegFilter: (overlay: TextOverlay, startTime: number, endTime: number, duration: number) => string;
 }
