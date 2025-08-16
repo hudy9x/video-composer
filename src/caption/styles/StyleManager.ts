@@ -1,5 +1,5 @@
 import { TextStyle } from './BaseStyle';
-import { TextOverlay } from '../type';
+import { TextOverlay } from '@/caption/type';
 import { FontStyle } from './FontStyle';
 import { ColorStyle } from './ColorStyle';
 import { OutlineStyle } from './OutlineStyle';

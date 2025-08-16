@@ -1,5 +1,5 @@
 import { BaseEffect } from './BaseEffect';
-import { TextOverlay } from '../type';
+import { TextOverlay } from '@/caption/type';
 
 export const ZOOM_IN_TYPE = 'zoom-in' as const;
 

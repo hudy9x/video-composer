@@ -1,5 +1,5 @@
-import { TextOverlay, Config, EffectType } from '../type';
-import { VideoDimensions } from '../../lib/types';
+import { TextOverlay, Config, EffectType } from '@/caption/type';
+import { VideoDimensions } from '@/lib/types';
 import {
   FADE_IN_TYPE,
   FADE_OUT_TYPE,
@@ -10,7 +10,7 @@ import {
   ZOOM_IN_TYPE,
   ZOOM_OUT_TYPE
 } from '../effects';
-import { FontFactory } from '../fonts';
+import { FontFactory } from '@/caption/fonts';
 
 export class DisplayService {
   private static getEffectDisplayName(effectType: EffectType): string {

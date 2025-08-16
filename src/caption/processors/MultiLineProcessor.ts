@@ -1,5 +1,5 @@
 import { BaseProcessor, ProcessingContext } from './BaseProcessor';
-import { TextOverlay, TextElement } from '../type';
+import { TextOverlay, TextElement } from '@/caption/type';
 
 export class MultiLineProcessor extends BaseProcessor {
   protected handleProcess(overlays: TextOverlay[], context: ProcessingContext): TextOverlay[] {

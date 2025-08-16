@@ -1,4 +1,4 @@
-import { TextOverlay } from '../type';
+import { TextOverlay } from '@/caption/type';
 
 export abstract class BaseProcessor {
   protected nextProcessor?: BaseProcessor;

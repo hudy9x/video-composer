@@ -1,4 +1,4 @@
-import { TextOverlay, EffectConfig } from '../type';
+import { TextOverlay, EffectConfig } from '@/caption/type';
 
 export abstract class BaseEffect {
   protected config: EffectConfig;

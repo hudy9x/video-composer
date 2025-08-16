@@ -1,6 +1,6 @@
 import { BaseProcessor, ProcessingContext } from './BaseProcessor';
-import { TextOverlay } from '../type';
-import { BaseFont, FontFactory } from '../fonts';
+import { TextOverlay } from '@/caption/type';
+import { BaseFont, FontFactory } from '@/caption/fonts';
 
 export class FontPathProcessor extends BaseProcessor {
   protected handleProcess(overlays: TextOverlay[], context: ProcessingContext): TextOverlay[] {

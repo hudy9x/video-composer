@@ -1,5 +1,5 @@
 import { TextStyle } from './BaseStyle';
-import { TextOverlay } from '../type';
+import { TextOverlay } from '@/caption/type';
 
 export class BoxStyle implements TextStyle {
   apply(filter: string, overlay: TextOverlay, ctx: { videoHeight: number }): string {

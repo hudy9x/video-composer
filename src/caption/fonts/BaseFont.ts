@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import { FontConfig } from '../type';
+import { FontConfig } from '@/caption/type';
 
 export abstract class BaseFont {
   protected config: FontConfig;

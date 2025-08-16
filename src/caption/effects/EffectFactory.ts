@@ -1,4 +1,4 @@
-import { EffectType } from '../type';
+import { EffectType } from '@/caption/type';
 import { BaseEffect } from './BaseEffect';
 import {
   Effect_FadeIn,

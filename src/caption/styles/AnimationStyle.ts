@@ -1,6 +1,6 @@
 import { TextStyle } from './BaseStyle';
-import { TextOverlay } from '../type';
-import { EffectFactory } from '../effects';
+import { TextOverlay } from '@/caption/type';
+import { EffectFactory } from '@/caption/effects';
 
 export class AnimationStyle implements TextStyle {
   apply(filter: string, overlay: TextOverlay, ctx: { videoHeight: number }): string {

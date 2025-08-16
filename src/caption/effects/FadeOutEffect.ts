@@ -1,5 +1,5 @@
 import { BaseEffect } from './BaseEffect';
-import { TextOverlay } from '../type';
+import { TextOverlay } from '@/caption/type';
 
 export const FADE_OUT_TYPE = 'fade-out' as const;
 

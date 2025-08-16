@@ -1,5 +1,5 @@
 import { BaseEffect } from './BaseEffect';
-import { TextOverlay } from '../type';
+import { TextOverlay } from '@/caption/type';
 
 export const SLIDE_UP_TYPE = 'slide-up' as const;
 

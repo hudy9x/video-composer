@@ -1,4 +1,4 @@
-import { FontType } from '../type';
+import { FontType } from '@/caption/type';
 import { BaseFont } from './BaseFont';
 import {
   Fonts_DMSerifDisplayItalic,

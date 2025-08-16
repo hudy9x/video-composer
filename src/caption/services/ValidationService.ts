@@ -1,6 +1,6 @@
-import { Config, TextOverlay } from '../type';
-import { FontFactory } from '../fonts';
-import { BaseFont } from '../fonts';
+import { Config, TextOverlay } from '@/caption/type';
+import { FontFactory } from '@/caption/fonts';
+import { BaseFont } from '@/caption/fonts';
 
 export class ValidationService {
   static validateConfiguration(config: Config): void {

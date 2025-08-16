@@ -1,5 +1,5 @@
 import { TextStyle } from './BaseStyle';
-import { TextOverlay, Position } from '../type';
+import { TextOverlay, Position } from '@/caption/type';
 
 export class PositionStyle implements TextStyle {
   apply(filter: string, overlay: TextOverlay, ctx: { videoHeight: number }): string {
