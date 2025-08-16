@@ -108,14 +108,25 @@ export const subtitleConfig: SimplifiedConfig = {
       text: "Hello World,",
       startTime: 0,
       endTime: 1.36,
+      animation: {
+        enabled: true,
+        type: "fade-in",
+        duration: 0.5,
+      },
     },
     {
       text: "It is Sunday,",
       startTime: 1.36,
       endTime: 2.72,
+      animation: {
+        enabled: true,
+        type: "fade-in",
+        duration: 0.5,
+      },
     },
     {
       text: "July 20th,",
+      fontFamily: DM_SERIF_DISPLAY_ITALIC_TYPE,
       startTime: 2.72,
       endTime: 4.08,
     },
@@ -162,7 +173,7 @@ export function applyDefaults(simplifiedConfig: SimplifiedConfig): Config {
       textOutline: overlay.textOutline ?? { enabled: false, color: "black", width: 2 },
       textShadow: overlay.textShadow ?? { enabled: false, color: "black", offsetX: 1, offsetY: 1 },
       textBox: overlay.textBox ?? { enabled: false, color: "black@0.7", padding: 8 },
-      animation: overlay.animation ?? { enabled: false, type: "fade-in", duration: 0.3 },
+      animation: overlay.animation ?? { enabled: false, type: "fade-in", duration: 0.5 },
       
       // Optional properties
       textElements: overlay.textElements,
