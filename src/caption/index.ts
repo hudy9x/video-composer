@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
-import { Config } from './type';
-import { VideoDimensions } from '../lib/types';
-import { VideoAnalyzer } from '../lib/video';
-import { FFmpegCommandBuilder, run as runFFmpeg } from '../lib/ffmpeg';
-import { StyleManager } from './styles';
-import { ValidationService, DisplayService, FFmpegService } from './services';
-import { FontPathProcessor, MultiLineProcessor, ProcessingContext } from './processors';
-import { defaultConfig } from "./config";
-import { ArgumentParser } from "./cli/ArgumentParser";
+import { Config } from '@/caption/type';
+import { VideoDimensions } from '@/lib/types';
+import { VideoAnalyzer } from '@/lib/video';
+import { FFmpegCommandBuilder, run as runFFmpeg } from '@/lib/ffmpeg';
+import { StyleManager } from '@/caption/styles';
+import { ValidationService, DisplayService, FFmpegService } from '@/caption/services';
+import { FontPathProcessor, MultiLineProcessor, ProcessingContext } from '@/caption/processors';
+import { defaultConfig } from "@/caption/config";
+import { ArgumentParser } from "@/caption/cli/ArgumentParser";
 
 export class VideoTextApplication {
   private config: Config;
