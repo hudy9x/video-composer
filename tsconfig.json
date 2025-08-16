@@ -4,6 +4,11 @@
     "module": "commonjs",
     "outDir": "./dist",
     "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@/caption/*": ["src/caption/*"]
+    },
     "strict": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -11,6 +16,7 @@
     "forceConsistentCasingInFileNames": true
   },
   "ts-node": {
-    "esm": false
+    "esm": false,
+    "require": ["tsconfig-paths/register"]
   }
 }

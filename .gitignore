@@ -30,3 +30,5 @@ temp/*
 !temp/.keep
 
 discovered_videos.json
+
+.env
