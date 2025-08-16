@@ -107,11 +107,30 @@ export interface TextOverlay {
   _totalElements?: number;
 }
 
+// Simplified interface for easier configuration
+export interface SimplifiedTextOverlay {
+  text: string;
+  textElements?: TextElement[];
+  startTime: number;
+  endTime: number;
+  fontSize?: number;
+  fontFamily?: FontType;
+  fontColor?: string;
+  position?: Position;
+  textAlign?: 'left' | 'center' | 'right';
+  textOutline?: TextOutline;
+  textShadow?: TextShadow;
+  textBox?: TextBox;
+  animation?: Animation;
+}
+
 export interface Config {
   textOverlays: TextOverlay[];
 }
 
-
+export interface SimplifiedConfig {
+  textOverlays: SimplifiedTextOverlay[];
+}
 
 export interface CommandLineOptions {
   inputFile: string;

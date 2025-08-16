@@ -1,4 +1,4 @@
-import { Config } from "@/caption/type";
+import { Config, SimplifiedConfig } from "@/caption/type";
 import {
   DM_SERIF_DISPLAY_ITALIC_TYPE,
   DM_SERIF_DISPLAY_REGULAR_TYPE,
@@ -101,234 +101,74 @@ const sampleConfig: Config = {
   ],
 };
 
-// Hardcoded subtitle config based on transcription data
-export const subtitleConfig: Config = {
+// Simplified subtitle config with defaults
+export const subtitleConfig: SimplifiedConfig = {
   textOverlays: [
     {
       text: "Hello World,",
-      textElements: [
-        {
-          text: "Hello World,",
-          line: 0,
-        },
-      ],
       startTime: 0,
       endTime: 1.36,
-      fontSize: 4,
-      fontFamily: DM_SERIF_DISPLAY_REGULAR_TYPE,
-      fontColor: "white",
-      position: { x: "50%", y: "50%" },
-      textAlign: "center",
-      textOutline: {
-        enabled: true,
-        color: "black",
-        width: 2,
-      },
-      textShadow: {
-        enabled: true,
-        color: "black",
-        offsetX: 1,
-        offsetY: 1,
-      },
-      textBox: {
-        enabled: false,
-        color: "black@0.7",
-        padding: 8,
-      },
-      animation: {
-        enabled: true,
-        type: "fade-in",
-        duration: 0.3,
-      },
     },
     {
       text: "It is Sunday,",
       startTime: 1.36,
       endTime: 2.72,
-      fontSize: 4,
-      fontFamily: DM_SERIF_DISPLAY_REGULAR_TYPE,
-      fontColor: "white",
-      position: { x: "50%", y: "50%" },
-      textAlign: "center",
-      textOutline: {
-        enabled: true,
-        color: "black",
-        width: 2,
-      },
-      textShadow: {
-        enabled: true,
-        color: "black",
-        offsetX: 1,
-        offsetY: 1,
-      },
-      textBox: {
-        enabled: false,
-        color: "black@0.7",
-        padding: 8,
-      },
-      animation: {
-        enabled: true,
-        type: "fade-in",
-        duration: 0.3,
-      },
     },
     {
       text: "July 20th,",
       startTime: 2.72,
       endTime: 4.08,
-      fontSize: 4,
-      fontFamily: DM_SERIF_DISPLAY_REGULAR_TYPE,
-      fontColor: "white",
-      position: { x: "50%", y: "50%" },
-      textAlign: "center",
-      textOutline: {
-        enabled: true,
-        color: "black",
-        width: 2,
-      },
-      textShadow: {
-        enabled: true,
-        color: "black",
-        offsetX: 1,
-        offsetY: 1,
-      },
-      textBox: {
-        enabled: false,
-        color: "black@0.7",
-        padding: 8,
-      },
-      animation: {
-        enabled: true,
-        type: "fade-in",
-        duration: 0.3,
-      },
     },
     {
       text: "and I",
       startTime: 4.08,
       endTime: 5.44,
-      fontSize: 4,
-      fontFamily: DM_SERIF_DISPLAY_REGULAR_TYPE,
-      fontColor: "white",
-      position: { x: "50%", y: "50%" },
-      textAlign: "center",
-      textOutline: {
-        enabled: true,
-        color: "black",
-        width: 2,
-      },
-      textShadow: {
-        enabled: true,
-        color: "black",
-        offsetX: 1,
-        offsetY: 1,
-      },
-      textBox: {
-        enabled: false,
-        color: "black@0.7",
-        padding: 8,
-      },
-      animation: {
-        enabled: true,
-        type: "fade-in",
-        duration: 0.3,
-      },
     },
     {
       text: "am Heudi,",
       startTime: 5.44,
       endTime: 6.8,
-      fontSize: 4,
-      fontFamily: DM_SERIF_DISPLAY_REGULAR_TYPE,
-      fontColor: "white",
-      position: { x: "50%", y: "50%" },
-      textAlign: "center",
-      textOutline: {
-        enabled: true,
-        color: "black",
-        width: 2,
-      },
-      textShadow: {
-        enabled: true,
-        color: "black",
-        offsetX: 1,
-        offsetY: 1,
-      },
-      textBox: {
-        enabled: false,
-        color: "black@0.7",
-        padding: 8,
-      },
-      animation: {
-        enabled: true,
-        type: "fade-in",
-        duration: 0.3,
-      },
     },
     {
       text: "a web",
       startTime: 6.8,
       endTime: 8.16,
-      fontSize: 4,
-      fontFamily: DM_SERIF_DISPLAY_ITALIC_TYPE,
-      fontColor: "white",
-      position: { x: "50%", y: "50%" },
-      textAlign: "center",
-      textOutline: {
-        enabled: true,
-        color: "black",
-        width: 2,
-      },
-      textShadow: {
-        enabled: true,
-        color: "black",
-        offsetX: 1,
-        offsetY: 1,
-      },
-      textBox: {
-        enabled: true,
-        color: "black@0.7",
-        padding: 8,
-      },
-      animation: {
-        enabled: true,
-        type: "fade-in",
-        duration: 0.3,
-      },
     },
     {
       text: "developer.",
       startTime: 8.16,
       endTime: 9.52,
-      fontSize: 4,
-      fontFamily: DM_SERIF_DISPLAY_REGULAR_TYPE,
-      fontColor: "white",
-      position: { x: "50%", y: "50%" },
-      textAlign: "center",
-      textOutline: {
-        enabled: true,
-        color: "black",
-        width: 2,
-      },
-      textShadow: {
-        enabled: true,
-        color: "black",
-        offsetX: 1,
-        offsetY: 1,
-      },
-      textBox: {
-        enabled: false,
-        color: "black@0.7",
-        padding: 8,
-      },
-      animation: {
-        enabled: true,
-        type: "fade-in",
-        duration: 0.3,
-      },
     },
   ],
 };
+
+// Function to convert simplified config to full config with defaults
+export function applyDefaults(simplifiedConfig: SimplifiedConfig): Config {
+  return {
+    textOverlays: simplifiedConfig.textOverlays.map(overlay => ({
+      // Required properties
+      text: overlay.text,
+      startTime: overlay.startTime,
+      endTime: overlay.endTime,
+      
+      // Defaults
+      fontSize: overlay.fontSize ?? 8,
+      fontFamily: overlay.fontFamily ?? DM_SERIF_DISPLAY_REGULAR_TYPE,
+      fontColor: overlay.fontColor ?? "white",
+      position: overlay.position ?? { x: "50%", y: "50%" },
+      textAlign: overlay.textAlign ?? "center",
+      
+      // Disabled by default
+      textOutline: overlay.textOutline ?? { enabled: false, color: "black", width: 2 },
+      textShadow: overlay.textShadow ?? { enabled: false, color: "black", offsetX: 1, offsetY: 1 },
+      textBox: overlay.textBox ?? { enabled: false, color: "black@0.7", padding: 8 },
+      animation: overlay.animation ?? { enabled: false, type: "fade-in", duration: 0.3 },
+      
+      // Optional properties
+      textElements: overlay.textElements,
+    }))
+  };
+}
 
 export function loadConfigFromFile(configPath: string): Config {
   // Future: Load configuration from JSON file
@@ -336,4 +176,4 @@ export function loadConfigFromFile(configPath: string): Config {
   return defaultConfig;
 }
 
-export const defaultConfig: Config = subtitleConfig;
+export const defaultConfig: Config = applyDefaults(subtitleConfig);
