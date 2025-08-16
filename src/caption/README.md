@@ -47,6 +47,254 @@ If no output file is specified, the system automatically generates a filename:
 # Output: ./videos/project/final_with_multi_text.mov
 ```
 
+## Text Layout Configuration Examples
+
+The caption system supports both simplified and detailed text overlay configurations. Here are examples of different approaches:
+
+### 1. Simplified Configuration (Recommended)
+
+For most use cases, you can use the simplified configuration that applies sensible defaults:
+
+```typescript
+import { SimplifiedConfig } from '@/caption/type';
+import { applyDefaults } from '@/caption/config';
+
+// Minimal configuration - only essential properties
+const minimalConfig: SimplifiedConfig = {
+  textOverlays: [
+    {
+      text: "Hello World,",
+      startTime: 0,
+      endTime: 1.36,
+    },
+    {
+      text: "It is Sunday,",
+      startTime: 1.36,
+      endTime: 2.72,
+    },
+    {
+      text: "July 20th,",
+      startTime: 2.72,
+      endTime: 4.08,
+    },
+  ],
+};
+
+// Apply defaults and use
+const config = applyDefaults(minimalConfig);
+const app = new VideoTextApplication(config);
+await app.processVideo('./input.mp4', './output.mp4');
+```
+
+**Applied Defaults:**
+- Font Size: `8` (8% of video height)
+- Font Family: `DM_SERIF_DISPLAY_REGULAR_TYPE`
+- Font Color: `"white"`
+- Position: `{ x: "50%", y: "50%" }` (center)
+- Text Alignment: `"center"`
+- Text Outline: `{ enabled: false, ... }`
+- Text Shadow: `{ enabled: false, ... }`
+- Text Box: `{ enabled: false, ... }`
+- Animation: `{ enabled: false, ... }`
+
+### 2. Custom Styling Configuration
+
+Override specific properties while keeping others as defaults:
+
+```typescript
+const customConfig: SimplifiedConfig = {
+  textOverlays: [
+    {
+      text: "Hello World,",
+      startTime: 0,
+      endTime: 1.36,
+      // Custom styling for this specific overlay
+      fontSize: 10,
+      fontColor: "yellow",
+      position: { x: "50%", y: "80%" },
+    },
+    {
+      text: "It is Sunday,",
+      startTime: 1.36,
+      endTime: 2.72,
+      // Uses defaults for everything else
+    },
+    {
+      text: "July 20th,",
+      startTime: 2.72,
+      endTime: 4.08,
+      // Enable some effects
+      textOutline: { enabled: true, color: "black", width: 2 },
+      textBox: { enabled: true, color: "black@0.5", padding: 8 },
+    },
+  ],
+};
+```
+
+### 3. Full Configuration (Legacy)
+
+For complete control over all properties, use the full configuration:
+
+```typescript
+import { Config } from '@/caption/type';
+import { DM_SERIF_DISPLAY_ITALIC_TYPE } from '@/caption/fonts';
+
+const fullConfig: Config = {
+  textOverlays: [
+    {
+      text: "ChatGPT\nprompt for\nimages",
+      textElements: [
+        {
+          text: "ChatGPT",
+          line: 0,
+        },
+        {
+          text: "prompt for",
+          line: 1,
+        },
+        {
+          text: "images",
+          line: 2,
+          fontSize: 8,
+          fontColor: "gold",
+          textOutline: { enabled: true, color: "red", width: 4 },
+          textShadow: {
+            enabled: true,
+            color: "purple",
+            offsetX: 3,
+            offsetY: 3,
+          },
+          animation: {
+            enabled: true,
+            type: "fade-in",
+            duration: 1.0,
+          },
+          startTime: 5,
+          endTime: 9,
+        },
+      ],
+      startTime: 2,
+      endTime: 7,
+      fontSize: 6,
+      fontFamily: DM_SERIF_DISPLAY_ITALIC_TYPE,
+      fontColor: "white",
+      position: { x: "50%", y: "50%" },
+      textAlign: "center",
+      textOutline: {
+        enabled: true,
+        color: "black",
+        width: 3,
+      },
+      textShadow: {
+        enabled: true,
+        color: "black",
+        offsetX: 2,
+        offsetY: 2,
+      },
+      textBox: {
+        enabled: false,
+        color: "black@0.5",
+        padding: 10,
+      },
+      animation: {
+        enabled: true,
+        type: "fade-in",
+        duration: 0.5,
+      },
+    },
+  ],
+};
+```
+
+### 4. Subtitle-Style Configuration
+
+For subtitle-style overlays positioned at the bottom:
+
+```typescript
+const subtitleConfig: SimplifiedConfig = {
+  textOverlays: [
+    {
+      text: "Hello World,",
+      startTime: 0,
+      endTime: 1.36,
+      position: { x: "50%", y: "85%" }, // Bottom center
+      fontSize: 4, // Smaller for subtitles
+      textBox: { enabled: true, color: "black@0.7", padding: 8 },
+      textOutline: { enabled: true, color: "black", width: 2 },
+    },
+    {
+      text: "It is Sunday,",
+      startTime: 1.36,
+      endTime: 2.72,
+      position: { x: "50%", y: "85%" },
+      fontSize: 4,
+      textBox: { enabled: true, color: "black@0.7", padding: 8 },
+      textOutline: { enabled: true, color: "black", width: 2 },
+    },
+  ],
+};
+```
+
+### 5. Multi-Line Text with Word-Level Styling
+
+Advanced configuration with individual word styling:
+
+```typescript
+const advancedConfig: Config = {
+  textOverlays: [
+    {
+      text: "Welcome to our\namazing video",
+      textElements: [
+        {
+          text: "Welcome",
+          line: 0,
+          fontSize: 8,
+          fontColor: "white",
+          animation: { enabled: true, type: "fade-in", duration: 0.5 },
+        },
+        {
+          text: "to our",
+          line: 0,
+          fontSize: 6,
+          fontColor: "lightblue",
+          animation: { enabled: true, type: "slide-up", duration: 0.8 },
+        },
+        {
+          text: "amazing",
+          line: 1,
+          fontSize: 10,
+          fontColor: "gold",
+          textOutline: { enabled: true, color: "black", width: 3 },
+        },
+        {
+          text: "video",
+          line: 1,
+          fontSize: 8,
+          fontColor: "white",
+          animation: { enabled: true, type: "zoom-in", duration: 1.0 },
+        },
+      ],
+      startTime: 0,
+      endTime: 5,
+      fontSize: 6,
+      fontFamily: DM_SERIF_DISPLAY_REGULAR_TYPE,
+      fontColor: "white",
+      position: { x: "50%", y: "50%" },
+      textAlign: "center",
+    },
+  ],
+};
+```
+
+### Configuration Best Practices
+
+1. **Use Simplified Config** for most cases - it's cleaner and applies sensible defaults
+2. **Override Specific Properties** when you need custom styling
+3. **Use Full Config** only when you need complete control or advanced features
+4. **Test with Short Videos** first to verify timing and styling
+5. **Keep Font Sizes Reasonable** - 1-20 for responsive sizing, >20 for fixed pixels
+6. **Use Background Boxes** for better readability on complex backgrounds
+
 ### Configuration
 
 Text overlays are configured through the `createDefaultConfig()` function. The current configuration includes:
